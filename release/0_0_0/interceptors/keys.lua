@@ -68,6 +68,9 @@ local ignoreFnFor = {
 --------------------------------------------------------------------
 local padCodes = {
     [82] = true,  -- NumPad 0
+    [83] = true,  -- NumPad 1
+    [84] = true,  -- NumPad 2
+    [85] = true,  -- NumPad 3
     [86] = true,  -- NumPad 4
     [87] = true,  -- NumPad 5
     [88] = true,  -- NumPad 6
