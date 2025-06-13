@@ -1,5 +1,6 @@
-local version = "0_0_0"
+local versionEls = { "0", "0", "0" }
+local versionPath = table.concat(versionEls, "/")
 
-local path = "release/" .. version
+local path = "release/" .. versionPath
 
-require(path .. "/init")
+require(versionPath .. "/init")
