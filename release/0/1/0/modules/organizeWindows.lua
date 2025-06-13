@@ -46,6 +46,11 @@ local function toUnitRect(pixelRect, screenFrame)
     }
 end
 
+-- window select helper ▼
+local function activeWindow()
+    return window.focusedWindow() or window.frontmostWindow()
+end
+
 -- Ensure a state table exists for this window
 local function ensureWindowState(win)
     local id = win:id()
@@ -119,7 +124,7 @@ end
 -- NUMPAD 4: left edge, full height, width cycles ¾ → ⅔ → ½ → ⅓ → ¼
 --------------------------------------------------------------------
 bindWindowKey(MODS, PAD4, function()
-    local w = window.focusedWindow()
+    local w = activeWindow()
     if not w then return end
     local st = ensureWindowState(w)
     resetOtherCycles(st, "cycle4Index")
@@ -137,7 +142,7 @@ end)
 -- NUMPAD 6: right edge, full height, width cycles ¾ → ⅔ → ½ → ⅓ → ¼
 --------------------------------------------------------------------
 bindWindowKey(MODS, PAD6, function()
-    local w = window.focusedWindow()
+    local w = activeWindow()
     if not w then return end
     local st = ensureWindowState(w)
     resetOtherCycles(st, "cycle6Index")
@@ -155,7 +160,7 @@ end)
 -- NUMPAD 8: top edge, half height, width cycles [full → ⅓(slot2) → ¼(slot2) → ¼(slot3)]
 --------------------------------------------------------------------
 bindWindowKey(MODS, PAD8, function()
-    local w = window.focusedWindow()
+    local w = activeWindow()
     if not w then return end
     local st = ensureWindowState(w)
     resetOtherCycles(st, "cycle8Index")
@@ -181,7 +186,7 @@ end)
 -- NUMPAD 2: bottom edge, half height, width cycles [full → ⅓(slot2) → ¼(slot2) → ¼(slot3)]
 --------------------------------------------------------------------
 bindWindowKey(MODS, PAD2, function()
-    local w = window.focusedWindow()
+    local w = activeWindow()
     if not w then return end
     local st = ensureWindowState(w)
     resetOtherCycles(st, "cycle2Index")
@@ -209,7 +214,7 @@ end)
 -- NUMPAD 7: top-left corner, half height, width cycles ¾ → ⅔ → ½ → ⅓ → ¼
 --------------------------------------------------------------------
 bindWindowKey(MODS, PAD7, function()
-    local w = window.focusedWindow()
+    local w = activeWindow()
     if not w then return end
     local st = ensureWindowState(w)
     resetOtherCycles(st, "cycle7Index")
@@ -227,7 +232,7 @@ end)
 -- NUMPAD 9: top-right corner, half height, width cycles ¾ → ⅔ → ½ → ⅓ → ¼
 --------------------------------------------------------------------
 bindWindowKey(MODS, PAD9, function()
-    local w = window.focusedWindow()
+    local w = activeWindow()
     if not w then return end
     local st = ensureWindowState(w)
     resetOtherCycles(st, "cycle9Index")
@@ -245,7 +250,7 @@ end)
 -- NUMPAD 1: bottom-left corner, half height, width cycles ¾ → ⅔ → ½ → ⅓ → ¼
 --------------------------------------------------------------------
 bindWindowKey(MODS, PAD1, function()
-    local w = window.focusedWindow()
+    local w = activeWindow()
     if not w then return end
     local st = ensureWindowState(w)
     resetOtherCycles(st, "cycle1Index")
@@ -265,7 +270,7 @@ end)
 -- NUMPAD 3: bottom-right corner, half height, width cycles ¾ → ⅔ → ½ → ⅓ → ¼
 --------------------------------------------------------------------
 bindWindowKey(MODS, PAD3, function()
-    local w = window.focusedWindow()
+    local w = activeWindow()
     if not w then return end
     local st = ensureWindowState(w)
     resetOtherCycles(st, "cycle3Index")
@@ -285,7 +290,7 @@ end)
 -- NUMPAD 5: centre toggle — original-centre → ⅓(slot2) → ¼(slot2) → ¼(slot3)
 --------------------------------------------------------------------
 bindWindowKey(MODS, PAD5, function()
-    local w = window.focusedWindow()
+    local w = activeWindow()
     if not w then return end
     local st = ensureWindowState(w)
     resetOtherCycles(st, "cycle5Index")
@@ -319,7 +324,7 @@ end)
 -- RETURN: toggle fullscreen ↔ restore previous frame
 --------------------------------------------------------------------
 bindWindowKey(MODS, "return", function()
-    local w = window.focusedWindow()
+    local w = activeWindow()
     if not w then return end
     local st = ensureWindowState(w)
     if not st.fullscreen then
@@ -342,7 +347,7 @@ end)
 -- Backspace: restore original frame + reset all cycle indices
 --------------------------------------------------------------------
 bindWindowKey(MODS, "delete", function()
-    local w = window.focusedWindow()
+    local w = activeWindow()
     if not w then return end
     local st = ensureWindowState(w)
     if st.originalUnit then
@@ -358,7 +363,7 @@ end)
 -- Cmd+Ctrl+] : move window to next display
 --------------------------------------------------------------------
 bindWindowKey(MODS, "[", function()
-    local w = window.focusedWindow()
+    local w = activeWindow()
     if not w then return end
     local currentScreen = w:screen()
     local allScreens    = screen.allScreens()
@@ -373,7 +378,7 @@ bindWindowKey(MODS, "[", function()
 end)
 
 bindWindowKey(MODS, "]", function()
-    local w = window.focusedWindow()
+    local w = activeWindow()
     if not w then return end
     local currentScreen = w:screen()
     local allScreens    = screen.allScreens()
