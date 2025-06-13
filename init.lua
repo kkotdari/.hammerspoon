@@ -3,4 +3,4 @@ local versionPath = table.concat(versionEls, "/")
 
 local path = "release/" .. versionPath
 
-require(versionPath .. "/init")
+require(path .. "/init")
