@@ -263,7 +263,7 @@ bindPointingKey({}, 92,
 -- Arrow keys (NumPad 8/5/4/6) → move cursor
 --------------------------------------------------------------------
 bindPointingKey({}, 91, moveFunction(91,  0, -1))  -- NumPad 8 → up
-bindPointingKey({}, 87, moveFunction(87,  0,  1))  -- NumPad 2 → down
+bindPointingKey({}, 87, moveFunction(87,  0,  1))  -- NumPad 5 → down
 bindPointingKey({}, 86, moveFunction(86, -1,  0))  -- NumPad 4 → left
 bindPointingKey({}, 88, moveFunction(88,  1,  0))  -- NumPad 6 → right
 
@@ -271,17 +271,17 @@ bindPointingKey({}, 88, moveFunction(88,  1,  0))  -- NumPad 6 → right
 -- Cmd+alt + NumPad keys → drag in four directions
 --------------------------------------------------------------------
 bindPointingKey({"cmd", "alt"}, 91, dragFunction(91,  0, -1))  -- NumPad 8 → drag up
-bindPointingKey({"cmd", "alt"}, 87, dragFunction(87,  0,  1))  -- NumPad 2 → drag down
+bindPointingKey({"cmd", "alt"}, 87, dragFunction(87,  0,  1))  -- NumPad 5 → drag down
 bindPointingKey({"cmd", "alt"}, 86, dragFunction(86, -1,  0))  -- NumPad 4 → drag left
 bindPointingKey({"cmd", "alt"}, 88, dragFunction(88,  1,  0))  -- NumPad 6 → drag right
 
 --------------------------------------------------------------------
 -- Cmd+Ctrl + NumPad keys → scroll
 --------------------------------------------------------------------
-bindPointingKey({"cmd", "ctrl"}, 91, scrollFunction(91,  1,  0))  -- NumPad 8 → scroll up
-bindPointingKey({"cmd", "ctrl"}, 87, scrollFunction(87, -1,  0))  -- NumPad 2 → scroll down
-bindPointingKey({"cmd", "ctrl"}, 86, scrollFunction(86,  0,  1))  -- NumPad 4 → scroll left
-bindPointingKey({"cmd", "ctrl"}, 88, scrollFunction(88,  0, -1))  -- NumPad 6 → scroll right
+bindPointingKey({"cmd", "ctrl"}, 91, scrollFunction(91,  0,  1))  -- NumPad 8 → scroll up
+bindPointingKey({"cmd", "ctrl"}, 87, scrollFunction(87,  0, -1))  -- NumPad 5 → scroll down
+bindPointingKey({"cmd", "ctrl"}, 86, scrollFunction(86, -1,  0))  -- NumPad 4 → scroll left
+bindPointingKey({"cmd", "ctrl"}, 88, scrollFunction(88,  1,  0))  -- NumPad 6 → scroll right
 
 --------------------------------------------------------------------
 -- NumPad . → teleport cursor
