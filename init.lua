@@ -1,4 +1,4 @@
-local version = "0_1_0"
+local version = "0_0_0"
 
 local path = "release/" .. version
 
