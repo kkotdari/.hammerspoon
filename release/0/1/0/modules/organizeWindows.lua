@@ -397,4 +397,4 @@ end)
 --------------------------------------------------------------------
 -- Ensure window hotkeys are active on load
 _G.toggleHotkeys(_G.allWindowHotkeys, true)
-indicator.showIndicator("mode", "🖥️ Window mode")
+indicator.showIndicator("mode", "Calc & Organizer")
