@@ -161,7 +161,7 @@ local function hidePreview()
 end
 
 --------------------------------------------------------------------
--- stopScreencapture: terminate any running capture task
+-- helpers to stop any pending capture / click-watcher
 --------------------------------------------------------------------
 local function stopScreencapture()
     if captureTask then
@@ -169,6 +169,18 @@ local function stopScreencapture()
         captureTask = nil
     end
     RunCapture = false
+end
+
+local function stopClickWatcher()
+    if _G.clickWatcher then
+        _G.clickWatcher:stop()
+        _G.clickWatcher = nil
+    end
+end
+
+local function stopAllCapture()
+    stopScreencapture()   -- kills screencapture process, resets flags
+    stopClickWatcher()    -- kills window-click watcher
 end
 
 --------------------------------------------------------------------
@@ -214,15 +226,15 @@ _G.keyAfterCapturePreview = eventtap.new(
             local fname = saveImageFull(lastImage)
             local fullpath = screenshotDir .. "/" .. fname
             -- Preview 앱으로 바로 열기
+            toast.showToast("✏️ Open in " .. editorApp, 0.5)
             hs.execute(string.format('open -a "%s" "%s"', editorApp, fullpath))
-            toast.showToast("✏️ Opened in Preview", 0.5)
             hidePreview()
             stopScreencapture()
             return true
         end
         -- Esc: just dismiss
         if kc == hs.keycodes.map.escape then
-			toast.showToast("⛔️ Capture cancelled", 0.5)
+			toast.showToast("🗑️ Preview deleted", 0.5)
             hidePreview()
 			stopScreencapture()
             return true
@@ -239,11 +251,6 @@ _G.keyAfterCapturePreview:start()
 local function runScreencapture(args)
     lastCaptureArgs = args
     RunCapture      = true
-
-	-- if there's already a pending task, kill it first
-    if captureTask then
-        stopScreencapture()
-    end
 
 	local tmp = screenshotDir .. "/capture_tmp.png"
 	local cmd = string.format('screencapture %s -x "%s"', args, tmp)
@@ -278,7 +285,7 @@ _G.keyWhileRunCapture = eventtap.new(
         -- r: trigger recapture immediately
         if kc == hs.keycodes.map.r and lastCaptureArgs == "-i" then
             toast.showToast("🔄 Capture restarted", 0.5)
-            stopScreencapture()
+            stopAllCapture()
 			runScreencapture(lastCaptureArgs)
             return true
         end
@@ -286,7 +293,7 @@ _G.keyWhileRunCapture = eventtap.new(
         -- Esc: cancel this pending capture
         if kc == hs.keycodes.map.escape then
             toast.showToast("⛔️ Capture cancelled", 0.5)
-			stopScreencapture()
+			stopAllCapture()
             return false
         end
 
@@ -299,12 +306,20 @@ _G.keyWhileRunCapture:start()
 -- Hotkey bindings
 --------------------------------------------------------------------
 hotkey.bind({}, "f13", function()
+	-- if there's already a pending task, kill it first
+    if captureTask then
+        stopAllCapture()
+    end
 	toast.showToast("↖️ Drag to capture...", 0.75)
 	runScreencapture("-i")
 end)
 
 
 hotkey.bind({}, "f14", function()
+    -- if there's already a pending task, kill it first
+    if captureTask then
+        stopAllCapture()
+    end
     toast.showToast("☑️ Click any window to capture...", 0.75)
 
     _G.clickWatcher = eventtap.new(
@@ -345,11 +360,19 @@ hotkey.bind({}, "f14", function()
 end)
 
 hotkey.bind({}, "f15", function()
+    -- if there's already a pending task, kill it first
+    if captureTask then
+        stopAllCapture()
+    end
 	local fr     = screen.primaryScreen():fullFrame()
 	local region = string.format("-R%d,%d,%d,%d", fr.x, fr.y, fr.w, fr.h)
 	runScreencapture(region)
 end)
 
 hotkey.bind({ "cmd", "ctrl" }, "f15", function()
+    -- if there's already a pending task, kill it first
+    if captureTask then
+        stopAllCapture()
+    end
 	runScreencapture("")
 end)

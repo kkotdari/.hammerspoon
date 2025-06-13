@@ -13,5 +13,5 @@ require("release/" .. versionPath .. "/modules/windows")               -- window
 require("release/" .. versionPath .. "/modules/pointings")             -- pointing‐device functionality
 require("release/" .. versionPath .. "/modules/capture")               -- screenshot to clipboard/file helper
 
-print("runiing version: ", version)
-toast.showToast("🙂 Welcome to Hammerspoon toolkits. You are usinig version " .. version, 3)
+print("running version: ", version)
+toast.showToast("🙂 Welcome to Hammerspoon toolkits. You are using version " .. version, 3)
