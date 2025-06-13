@@ -300,7 +300,7 @@ bindPointingKey({}, 82,
 local function enterPointingMode()
     _G.pointingsOn = true
     toast.showToast("🖱️ Mouse mode", 1.5)
-    indicator.showIndicator("mode", "🖱️ Mouse mode")
+    indicator.showIndicator("mode", "🖱️")
     _G.toggleHotkeys(_G.allWindowHotkeys, false)
     _G.toggleHotkeys(_G.allPointingHotkeys, true)
 end
@@ -308,7 +308,7 @@ end
 local function exitPointingMode()
     _G.pointingsOn = false
     toast.showToast("🖥️ Window mode", 1.5)
-    indicator.showIndicator("mode", "🖥️ Window mode")
+    indicator.showIndicator("mode", "🖥️")
     _G.toggleHotkeys(_G.allPointingHotkeys, false)
     _G.toggleHotkeys(_G.allWindowHotkeys, true)
 
