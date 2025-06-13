@@ -164,6 +164,6 @@ _G.handleKeyInput:start()
 --------------------------------------------------------------------
 hotkey.bind({"cmd", "ctrl"}, "f12", function()
 	keyLogEnabled = not keyLogEnabled
-	toast.showToast(keyLogEnabled and "🟢 Key log on" or "🛑 Key log off", 1.0)
+	toast.showToast(keyLogEnabled and "🟢 Key log on" or "⛔️ Key log off", 1.0)
 	-- print(string.format("[DEBUG] %s", keyLogEnabled and "ON" or "OFF"))
 end)
