@@ -299,7 +299,7 @@ bindPointingKey({}, 82,
 --------------------------------------------------------------------
 local function enterPointingMode()
     _G.pointingsOn = true
-    toast.showToast("🖱️ Pad : Pointer", 1.5)
+    toast.showToast("Pad : 🖱️ Pointer", 1.5)
     indicator.showIndicator("mode", "Pointer")
     _G.toggleHotkeys(_G.allWindowHotkeys, false)
     _G.toggleHotkeys(_G.allPointingHotkeys, true)
@@ -307,7 +307,7 @@ end
 
 local function exitPointingMode()
     _G.pointingsOn = false
-    toast.showToast("🔢 | 🖥️ Pad: Calc & Organizer", 1.5)
+    toast.showToast("Pad: 🔢 | 🖥️ Calc & Organizer", 1.5)
     indicator.showIndicator("mode", "Calc & Organizer")
     _G.toggleHotkeys(_G.allPointingHotkeys, false)
     _G.toggleHotkeys(_G.allWindowHotkeys, true)

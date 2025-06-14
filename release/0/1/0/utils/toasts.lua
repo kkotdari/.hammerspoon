@@ -8,15 +8,14 @@ local NOTIF_NAME = "GlassToaster.Toast"
 --------------------------------------------------------------------
 local function ensureAppRunning()
     if not hs.application.get("GlassToaster") then
-        -- Launch in background (-g) without bringing it to the front
         hs.task.new("/usr/bin/open", nil, { "-g", "-a", APP_PATH }):start()
-        -- Optional short delay to give the app time to register its observer
-        hs.timer.usleep(200) -- 0.2 s
+        hs.timer.usleep(200000) -- 0.2 s to allow observer setup
     end
 end
 
 --------------------------------------------------------------------
 -- M.showToast(message[, duration])
+--   Sends toast message to GlassToaster via distributed notification.
 --------------------------------------------------------------------
 function M.showToast(message, duration)
     duration = duration or 2
@@ -24,13 +23,11 @@ function M.showToast(message, duration)
 
     ensureAppRunning()
 
-    -- Build JSON payload
     local payload = hs.json.encode({
         message  = message,
         duration = duration
     })
 
-    -- Post distributed notification
     hs.distributednotifications.post(NOTIF_NAME, payload)
 end
 
