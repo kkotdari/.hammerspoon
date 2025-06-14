@@ -67,6 +67,9 @@ local ignoreFnFor = {
 -- NumPad keyCodes to patch (with comments)
 --------------------------------------------------------------------
 local padCodes = {
+    [83] = true,  -- NumPad 1
+    [84] = true,  -- NumPad 2
+    [85] = true,  -- NumPad 3
     [82] = true,  -- NumPad 0
     [86] = true,  -- NumPad 4
     [87] = true,  -- NumPad 5
