@@ -252,6 +252,11 @@ local function runScreencapture(args)
     lastCaptureArgs = args
     RunCapture      = true
 
+    local pos = hs.mouse.absolutePosition()
+    hs.mouse.setAbsolutePosition({ x = pos.x + 1, y = pos.y })
+    hs.timer.usleep(10000)
+    hs.mouse.setAbsolutePosition(pos)
+
 	local tmp = screenshotDir .. "/capture_tmp.png"
 	local cmd = string.format('screencapture %s -x "%s"', args, tmp)
 
@@ -305,22 +310,70 @@ _G.keyWhileRunCapture:start()
 --------------------------------------------------------------------
 -- Hotkey bindings
 --------------------------------------------------------------------
-hotkey.bind({}, "f13", function()
+hotkey.bind({ "cmd"}, "f1", function()
 	-- if there's already a pending task, kill it first
     if captureTask then
         stopAllCapture()
     end
-	toast.showToast("↖️ Drag to capture...", 0.75)
+	toast.showToast("↖️ Drag to capture...", 0.5)
 	runScreencapture("-i")
 end)
 
+-- --------------------------------------------------------------------
+-- -- Scroll-shot  ⌘⌃F13
+-- --------------------------------------------------------------------
+-- local function captureScroll(win, contentH, step, delay)
+--     step  = step  or 400
+--     delay = (delay or 100) / 1000  -- ms ➜ 초
 
-hotkey.bind({}, "f14", function()
+--     local pieces, w = {}, win:frame().w
+--     hs.mouse.setAbsolutePosition(win:frame().center) -- 커서 이동
+--     win:focus(); hs.timer.usleep(40000)              -- 포커스 & 40 ms 대기
+
+--     for y = 0, contentH - 1, step do
+--         table.insert(pieces, win:snapshot())
+--         hs.eventtap.scrollWheel({0,-step}, {}, 'pixel')
+--         hs.timer.usleep(delay * 1e6)
+--     end
+
+--     local totalH = #pieces * step
+--     local cv = hs.canvas.new{ x = 0, y = 0, w = w, h = totalH }
+
+--     for i,img in ipairs(pieces) do
+--         cv:appendElements({
+--             type  = 'image',
+--             image = img,
+--             frame = { x = 0, y = (i-1)*step, w = w, h = step }
+--         })
+--     end
+
+--     local out = cv:snapshot()  -- 한 장으로 합친다
+--     cv:delete()
+--     return out
+-- end
+
+-- hotkey.bind({ "cmd"}, "f5", function()
+--     local win = hs.window.frontmostWindow()
+--     if not win then hs.alert.show('⚠️ No window'); return end
+
+--     -- 일단 하드코딩 ➜ 동작 확인 후 prompt 로 변경
+--     local H = 3000                     -- 총 스크롤 높이(px)
+--     local img = captureScroll(win, H)
+
+--     if img then
+--         showPreview(img)
+--         toast.showToast('✅ Scroll captured', 0.7)
+--     else
+--         toast.showToast('❌ Capture failed', 0.7)
+--     end
+-- end)
+
+hotkey.bind({ "cmd"}, "f2", function()
     -- if there's already a pending task, kill it first
     if captureTask then
         stopAllCapture()
     end
-    toast.showToast("☑️ Click any window to capture...", 0.75)
+    toast.showToast("☑️ Click any window to capture...", 0.5)
 
     _G.clickWatcher = eventtap.new(
         { eventtap.event.types.leftMouseDown, eventtap.event.types.keyDown },
@@ -359,7 +412,7 @@ hotkey.bind({}, "f14", function()
     clickWatcher:start()
 end)
 
-hotkey.bind({}, "f15", function()
+hotkey.bind({ "cmd"}, "f3", function()
     -- if there's already a pending task, kill it first
     if captureTask then
         stopAllCapture()
@@ -369,7 +422,7 @@ hotkey.bind({}, "f15", function()
 	runScreencapture(region)
 end)
 
-hotkey.bind({ "cmd", "ctrl" }, "f15", function()
+hotkey.bind({ "cmd"}, "f4", function()
     -- if there's already a pending task, kill it first
     if captureTask then
         stopAllCapture()
