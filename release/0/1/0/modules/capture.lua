@@ -191,52 +191,57 @@ _G.keyAfterCapturePreview = eventtap.new(
     function(e)
         if not previewCanvas then return false end
 
+        local flags = e:getFlags()
         local kc = e:getKeyCode()
-        -- c: copy
-        if kc == hs.keycodes.map.c and lastImage then
+
+        -- cmd + c: copy
+        if kc == hs.keycodes.map.c and flags.cmd and lastImage then
             pasteboard.clearContents()
             pasteboard.writeObjects({ lastImage })
             toast.showToast("📋 Copied", 0.5)
             hidePreview()
-			stopScreencapture()
-			return true
-        end
-        -- s: save
-        if kc == hs.keycodes.map.s and lastImage then
-            local fname = saveImageFull(lastImage)
-            toast.showToast("📁 Saved as " .. fname, 0.5)
-			hs.execute('open "'..screenshotDir..'"')
-            hidePreview()
-			stopScreencapture()
+            stopScreencapture()
             return true
         end
-        -- a: copy + save
-        if kc == hs.keycodes.map.a and lastImage then
+
+        -- cmd + s: save
+        if kc == hs.keycodes.map.s and flags.cmd and lastImage then
+            local fname = saveImageFull(lastImage)
+            toast.showToast("📁 Saved as " .. fname, 0.5)
+            hs.execute('open "'..screenshotDir..'"')
+            hidePreview()
+            stopScreencapture()
+            return true
+        end
+
+        -- cmd + a: copy + save
+        if kc == hs.keycodes.map.a and flags.cmd and lastImage then
             pasteboard.clearContents()
             pasteboard.writeObjects({ lastImage })
             local fname = saveImageFull(lastImage)
             toast.showToast("📋 Copied & 📁 Saved as " .. fname, 0.5)
-			hs.execute('open "'..screenshotDir..'"')
+            hs.execute('open "'..screenshotDir..'"')
             hidePreview()
-			stopScreencapture()
+            stopScreencapture()
             return true
         end
-        -- e: save + open in Preview for editing
-        if kc == hs.keycodes.map.e and lastImage then
+
+        -- cmd + e: save + open in Preview
+        if kc == hs.keycodes.map.e and flags.cmd and lastImage then
             local fname = saveImageFull(lastImage)
             local fullpath = screenshotDir .. "/" .. fname
-            -- Preview 앱으로 바로 열기
             toast.showToast("✏️ Open in " .. editorApp, 0.5)
             hs.execute(string.format('open -a "%s" "%s"', editorApp, fullpath))
             hidePreview()
             stopScreencapture()
             return true
         end
+
         -- Esc: just dismiss
         if kc == hs.keycodes.map.escape then
-			toast.showToast("🗑️ Preview deleted", 0.5)
+            toast.showToast("🗑️ Preview deleted", 0.5)
             hidePreview()
-			stopScreencapture()
+            stopScreencapture()
             return true
         end
 

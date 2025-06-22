@@ -6,7 +6,6 @@ hotkey.setLogLevel('warning')
 local window             = hs.window
 local wfilter            = hs.window.filter
 local screen             = hs.screen
-local AreaChangeDescriber = require("AreaChangeDescriber")   -- your helper module
 
 --------------------------------------------------------------------
 -- disable animations
@@ -122,7 +121,7 @@ bindWindowKey(MODS, PAD4, function()
     local frac = EDGE_FRACS[idx]
     local newUnit = { x=0, y=0, w=frac, h=1.0 }
     animateToUnit(w, newUnit)
-    AreaChangeDescriber.showToast(prev, newUnit)
+    windowHelper.showToast(prev, newUnit)
     st.lastUnit = newUnit; st.cycle4Index = idx + 1
 end)
 
@@ -134,7 +133,7 @@ bindWindowKey(MODS, PAD6, function()
     local frac = EDGE_FRACS[idx]
     local newUnit = { x=1.0-frac, y=0, w=frac, h=1.0 }
     animateToUnit(w, newUnit)
-    AreaChangeDescriber.showToast(prev, newUnit)
+    windowHelper.showToast(prev, newUnit)
     st.lastUnit = newUnit; st.cycle6Index = idx + 1
 end)
 
@@ -150,7 +149,7 @@ bindWindowKey(MODS, PAD8, function()
         [4] = { x=1/2, y=0,   w=1/4,   h=0.5 },
     })[idx]
     animateToUnit(w, unit)
-    AreaChangeDescriber.showToast(prev, unit)
+    windowHelper.showToast(prev, unit)
     st.lastUnit = unit; st.cycle8Index = idx + 1
 end)
 
@@ -167,7 +166,7 @@ bindWindowKey(MODS, PAD2, function()
         [4] = { x=1/2, y=1-halfH, w=1/4, h=halfH },
     })[idx]
     animateToUnit(w, unit)
-    AreaChangeDescriber.showToast(prev, unit)
+    windowHelper.showToast(prev, unit)
     st.lastUnit = unit; st.cycle2Index = idx + 1
 end)
 
@@ -179,7 +178,7 @@ bindWindowKey(MODS, PAD7, function()
     local frac = CORNER_FRACS[idx]
     local unit = { x=0, y=0, w=frac, h=0.5 }
     animateToUnit(w, unit)
-    AreaChangeDescriber.showToast(prev, unit)
+    windowHelper.showToast(prev, unit)
     st.lastUnit = unit; st.cycle7Index = idx + 1
 end)
 
@@ -191,7 +190,7 @@ bindWindowKey(MODS, PAD9, function()
     local frac = CORNER_FRACS[idx]
     local unit = { x=1-frac, y=0, w=frac, h=0.5 }
     animateToUnit(w, unit)
-    AreaChangeDescriber.showToast(prev, unit)
+    windowHelper.showToast(prev, unit)
     st.lastUnit = unit; st.cycle9Index = idx + 1
 end)
 
@@ -203,7 +202,7 @@ bindWindowKey(MODS, PAD1, function()
     local frac = CORNER_FRACS[idx]
     local unit = { x=0, y=0.5, w=frac, h=0.5 }
     animateToUnit(w, unit)
-    AreaChangeDescriber.showToast(prev, unit)
+    windowHelper.showToast(prev, unit)
     st.lastUnit = unit; st.cycle1Index = idx + 1
 end)
 
@@ -215,7 +214,7 @@ bindWindowKey(MODS, PAD3, function()
     local frac = CORNER_FRACS[idx]
     local unit = { x=1-frac, y=0.5, w=frac, h=0.5 }
     animateToUnit(w, unit)
-    AreaChangeDescriber.showToast(prev, unit)
+    windowHelper.showToast(prev, unit)
     st.lastUnit = unit; st.cycle3Index = idx + 1
 end)
 
@@ -234,7 +233,7 @@ bindWindowKey(MODS, PAD5, function()
     else               unit = { x=1/2, y=0, w=1/4, h=1.0 }
     end
     animateToUnit(w, unit)
-    AreaChangeDescriber.showToast(prev, unit)
+    windowHelper.showToast(prev, unit)
     st.lastUnit = unit; st.cycle5Index = idx + 1
 end)
 
@@ -247,12 +246,12 @@ bindWindowKey(MODS, "return", function()
         st.previousUnit = toUnitRect(f, s)
         w:maximize()
         local unit = { x=0, y=0, w=1, h=1 }
-        AreaChangeDescriber.showToast(prev, unit)
+        windowHelper.showToast(prev, unit)
         st.lastUnit, st.fullscreen = unit, true
     else
         if st.previousUnit then
             w:moveToUnit(st.previousUnit, 0)
-            AreaChangeDescriber.showToast(prev, st.previousUnit)
+            windowHelper.showToast(prev, st.previousUnit)
             st.lastUnit, st.fullscreen = st.previousUnit, false
         end
     end
@@ -264,7 +263,7 @@ bindWindowKey(MODS, "delete", function()
     if st.originalUnit then
         local prev = st.lastUnit
         w:moveToUnit(st.originalUnit, 0)
-        AreaChangeDescriber.showToast(prev, st.originalUnit)
+        windowHelper.showToast(prev, st.originalUnit)
         st.lastUnit, st.fullscreen = st.originalUnit, false
         resetAllCycles(st)
     end
@@ -279,7 +278,7 @@ bindWindowKey(MODS, "[", function()
     local ni = (curIdx % #all) + 1
     w:moveToScreen(all[ni])
     local unit = toUnitRect(w:frame(), w:screen():frame())
-    AreaChangeDescriber.showToast(prev, unit)
+    windowHelper.showToast(prev, unit)
     st.lastUnit = unit
 end)
 
@@ -292,7 +291,7 @@ bindWindowKey(MODS, "]", function()
     local pi = curIdx - 1 > 0 and curIdx - 1 or #all
     w:moveToScreen(all[pi])
     local unit = toUnitRect(w:frame(), w:screen():frame())
-    AreaChangeDescriber.showToast(prev, unit)
+    windowHelper.showToast(prev, unit)
     st.lastUnit = unit
 end)
 
