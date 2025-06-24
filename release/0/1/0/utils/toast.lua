@@ -9,10 +9,36 @@ local function ensureAppRunning()
     end
 end
 
+local function normalizeFontInfo(input)
+    if type(input) ~= "table" then return nil end
+
+    local name       = input.name
+    local size       = tonumber(input.size)
+    local weight     = (input.weight == "Bold") and "Bold" or "Regular"
+    local color      = input.color or "#000000"
+    local kerning    = tonumber(input.kerning) or 0
+    local expansion  = tonumber(input.expansion) or 0
+    local lineSpacing = tonumber(input.lineSpacing) or 0
+
+    if not name or not size or not color then return nil end
+
+    return {
+        name         = name,
+        size         = size,
+        weight       = weight,
+        color        = color,
+        kerning      = kerning,
+        expansion    = expansion,
+        lineSpacing  = lineSpacing
+    }
+end
+
 function M.showToast(titleOrSpec, duration, fontInfo)
     ensureAppRunning()
 
+    local id = tostring(os.time()) .. tostring(math.random(100000, 999999))
     local spec = {
+        id = id,
         payload = {
             appName  = "Hammerspoon",
             bundleId = "org.hammerspoon.Hammerspoon",
@@ -20,30 +46,22 @@ function M.showToast(titleOrSpec, duration, fontInfo)
             subtitle = "",
             body     = ""
         },
-        duration = 2.0,
+        duration = tonumber(duration) or 2.0,
         fontInfo = {
-            name   = "",
-            size   = "",
-            weight = "",
-            color  = nil,
-            kerning = "1.2"
+            name        = "Helvetica",
+            size        = 14.0,
+            weight      = "Regular",
+            color       = "#000000",
+            kerning     = 0,
+            expansion   = 0,
+            lineSpacing = 0
         }
     }
 
     if type(titleOrSpec) == "string" then
         spec.payload.title = titleOrSpec
-        if type(duration) == "number" then
-            spec.duration = duration
-        end
-        if type(fontInfo) == "table" then
-            local f = fontInfo
-            spec.fontInfo.name   = f.name   or spec.fontInfo.name
-            spec.fontInfo.size   = f.size   or spec.fontInfo.size
-            spec.fontInfo.weight = (f.weight == "Bold") and "Bold" or "Regular"
-            if f.color ~= nil then spec.fontInfo.color = f.color end
-            spec.fontInfo.kerning = f.kerning or spec.fontInfo.kerning
-        end
-
+        local f = normalizeFontInfo(fontInfo)
+        if f then spec.fontInfo = f end
     elseif type(titleOrSpec) == "table" then
         local p = titleOrSpec
         spec.payload.appName  = p.appName  or spec.payload.appName
@@ -51,21 +69,18 @@ function M.showToast(titleOrSpec, duration, fontInfo)
         spec.payload.title    = p.title    or spec.payload.title
         spec.payload.subtitle = p.subtitle or spec.payload.subtitle
         spec.payload.body     = p.body     or spec.payload.body
-        spec.duration         = p.duration or spec.duration
+        spec.duration         = tonumber(p.duration) or spec.duration
 
         if p.fontInfo then
-            local f = p.fontInfo
-            spec.fontInfo.name   = f.name   or spec.fontInfo.name
-            spec.fontInfo.size   = f.size   or spec.fontInfo.size
-            spec.fontInfo.weight = (f.weight == "Bold") and "Bold" or "Regular"
-            if f.color ~= nil then spec.fontInfo.color = f.color end
-            spec.fontInfo.kerning = f.kerning or spec.fontInfo.kerning
+            local f = normalizeFontInfo(p.fontInfo)
+            if f then spec.fontInfo = f end
         end
     else
         return
     end
 
     local json = hs.json.encode(spec)
+    hs.printf("[HSToast] send toast: %s", spec.payload.title)
     hs.distributednotifications.post(NOTIF_NAME, nil, { json = json })
 end
 
