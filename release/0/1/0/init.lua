@@ -15,4 +15,4 @@ require("release/" .. versionPath .. "/modules/capture")                     -- 
 windowHelper = require("release/" .. versionPath .. "/modules/windowHelper") -- window management helper
 
 print("running version: ", version)
-toast.showToast("🙂 Welcome to Hammerspoon toolkits. You are using version " .. version, 3)
+toast.showToast("You are using Hammerspoon toolkits version " .. version, 3)
