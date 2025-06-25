@@ -299,4 +299,4 @@ end)
 -- activate hotkeys & indicator
 --------------------------------------------------------------------
 _G.toggleHotkeys(_G.allWindowHotkeys, true)
-indicator.showIndicator("mode", "Calc & Organizer")
+indicator.showIndicator("mode", "W")
