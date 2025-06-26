@@ -11,7 +11,7 @@ toast      = require("release/" .. versionPath .. "/utils/toast")            -- 
 indicator  = require("release/" .. versionPath .. "/utils/indicator")        -- indicator helper (indicate various states)
 require("release/" .. versionPath .. "/modules/organizeWindows")             -- window management hotkeys
 require("release/" .. versionPath .. "/modules/point")                       -- pointing‐device functionality
-require("release/" .. versionPath .. "/modules/capture")                     -- screenshot to clipboard/file helper
+-- require("release/" .. versionPath .. "/modules/capture")                     -- screenshot to clipboard/file helper
 windowHelper = require("release/" .. versionPath .. "/modules/windowHelper") -- window management helper
 
 print("running version: ", version)
