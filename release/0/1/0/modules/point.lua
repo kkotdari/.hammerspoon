@@ -270,10 +270,10 @@ bindPointingKey({}, 88, moveFunction(88,  1,  0))  -- NumPad 6 → right
 --------------------------------------------------------------------
 -- Cmd+alt + NumPad keys → drag in four directions
 --------------------------------------------------------------------
-bindPointingKey({"cmd", "alt"}, 91, dragFunction(91,  0, -1))  -- NumPad 8 → drag up
-bindPointingKey({"cmd", "alt"}, 87, dragFunction(87,  0,  1))  -- NumPad 5 → drag down
-bindPointingKey({"cmd", "alt"}, 86, dragFunction(86, -1,  0))  -- NumPad 4 → drag left
-bindPointingKey({"cmd", "alt"}, 88, dragFunction(88,  1,  0))  -- NumPad 6 → drag right
+bindPointingKey({"cmd", "shift"}, 91, dragFunction(91,  0, -1))  -- NumPad 8 → drag up
+bindPointingKey({"cmd", "shift"}, 87, dragFunction(87,  0,  1))  -- NumPad 5 → drag down
+bindPointingKey({"cmd", "shift"}, 86, dragFunction(86, -1,  0))  -- NumPad 4 → drag left
+bindPointingKey({"cmd", "shift"}, 88, dragFunction(88,  1,  0))  -- NumPad 6 → drag right
 
 --------------------------------------------------------------------
 -- Cmd+Ctrl + NumPad keys → scroll
