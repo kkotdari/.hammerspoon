@@ -297,35 +297,51 @@ bindPointingKey({}, 82,
 --------------------------------------------------------------------
 -- enter/exit pointing-mode (NumLock = 71)
 --------------------------------------------------------------------
-local function enterPointingMode()
-    _G.pointingsOn = true
-    toast.showToast("Pad : Pointer", 1.0)
-    indicator.showIndicator("mode", "P")
-    _G.toggleHotkeys(_G.allWindowHotkeys, false)
-    _G.toggleHotkeys(_G.allPointingHotkeys, true)
+local menu = hs.menubar.new()
+local isPointerMode = false
+
+local function updateTitle()
+  if isPointerMode then
+    menu:setTitle("Key-Mouse: ON")
+  else
+    menu:setTitle("Key-Mouse: OFF")
+  end
 end
 
-local function exitPointingMode()
-    _G.pointingsOn = false
-    toast.showToast("Pad : Calc and Organizer", 1.0)
-    indicator.showIndicator("mode", "W")
-    _G.toggleHotkeys(_G.allPointingHotkeys, false)
-    _G.toggleHotkeys(_G.allWindowHotkeys, true)
-
-    moveTimer:stop()
-    dragTimer:stop()
-    for _, t in pairs(scrollTimers) do t:stop() end
-
-    pressedDirs = {}
-    dragActive  = false
-    step        = MOVE_STEP
-    dragStep    = MOVE_STEP
+function enterPointingMode()
+  _G.pointingsOn = true
+  toast.showToast("Numpad: Key-Mouse ON", 3.0)
+  _G.toggleHotkeys(_G.allWindowHotkeys, false)
+  _G.toggleHotkeys(_G.allPointingHotkeys, true)
+  isPointerMode = true
+  updateTitle()
 end
 
-hotkey.new({}, 71, function()
-    if _G.pointingsOn then
-        exitPointingMode()
-    else
-        enterPointingMode()
-    end
-end):enable()
+function exitPointingMode()
+  _G.pointingsOn = false
+  toast.showToast("Numpad: Key-Mouse OFF ", 3.0)
+  _G.toggleHotkeys(_G.allPointingHotkeys, false)
+  _G.toggleHotkeys(_G.allWindowHotkeys, true)
+  moveTimer:stop()
+  dragTimer:stop()
+  for _, t in pairs(scrollTimers) do t:stop() end
+  pressedDirs = {}
+  dragActive  = false
+  step        = MOVE_STEP
+  dragStep    = MOVE_STEP
+  isPointerMode = false
+  updateTitle()
+end
+
+local function togglePointingMode()
+  if _G.pointingsOn then
+    exitPointingMode()
+  else
+    enterPointingMode()
+  end
+end
+
+hotkey.new({}, 71, togglePointingMode):enable()
+
+menu:setClickCallback(togglePointingMode)
+updateTitle()

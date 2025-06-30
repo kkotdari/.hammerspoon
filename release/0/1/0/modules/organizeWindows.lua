@@ -294,9 +294,3 @@ bindWindowKey(MODS, "]", function()
     windowHelper.showToast(prev, unit)
     st.lastUnit = unit
 end)
-
---------------------------------------------------------------------
--- activate hotkeys & indicator
---------------------------------------------------------------------
-_G.toggleHotkeys(_G.allWindowHotkeys, true)
-indicator.showIndicator("mode", "W")
