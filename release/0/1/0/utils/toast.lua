@@ -17,8 +17,7 @@ local function normalizeFontInfo(input)
     local weight     = (input.weight == "Bold") and "Bold" or "Regular"
     local color      = input.color or "#000000"
     local kerning    = tonumber(input.kerning) or 0
-    local expansion  = tonumber(input.expansion) or 0
-    local lineSpacing = tonumber(input.lineSpacing) or 0
+    local lineHeightMultiple = tonumber(input.lineHeightMultiple) or 0
 
     if not name or not size or not color then return nil end
 
@@ -28,8 +27,7 @@ local function normalizeFontInfo(input)
         weight       = weight,
         color        = color,
         kerning      = kerning,
-        expansion    = expansion,
-        lineSpacing  = lineSpacing
+        lineHeightMultiple  = lineHeightMultiple
     }
 end
 
@@ -53,8 +51,7 @@ function M.showToast(titleOrSpec, duration, fontInfo)
             weight      = "Regular",
             color       = "#000000",
             kerning     = 0,
-            expansion   = 0,
-            lineSpacing = 0
+            lineHeightMultiple = 0
         }
     }
 

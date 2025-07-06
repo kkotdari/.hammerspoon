@@ -2,7 +2,7 @@ local hs_screen = hs.screen
 
 local M = {}
 
-local gridW, gridH = 25, 9
+local gridW, gridH = 49, 13
 local baseChar = " "
 local arrowMapping = {
     up        = "↑", down      = "↓",
@@ -114,12 +114,12 @@ function M.showToast(prevUnit, newUnit)
 
     local nr1,nr2,nc1,nc2 = cellRangeForRect(newRect, screenFrame)
     for c = nc1, nc2 do
-        if weight[nr1+1][c+1] < 3 then grid[nr1+1][c+1] = "━"; weight[nr1+1][c+1] = 3 end
-        if weight[nr2+1][c+1] < 3 then grid[nr2+1][c+1] = "━"; weight[nr2+1][c+1] = 3 end
+        if weight[nr1+1][c+1] < 3 then grid[nr1+1][c+1] = "─"; weight[nr1+1][c+1] = 3 end
+        if weight[nr2+1][c+1] < 3 then grid[nr2+1][c+1] = "─"; weight[nr2+1][c+1] = 3 end
     end
     for r = nr1, nr2 do
-        if weight[r+1][nc1+1] < 3 then grid[r+1][nc1+1] = "┃"; weight[r+1][nc1+1] = 3 end
-        if weight[r+1][nc2+1] < 3 then grid[r+1][nc2+1] = "┃"; weight[r+1][nc2+1] = 3 end
+        if weight[r+1][nc1+1] < 3 then grid[r+1][nc1+1] = "│"; weight[r+1][nc1+1] = 3 end
+        if weight[r+1][nc2+1] < 3 then grid[r+1][nc2+1] = "│"; weight[r+1][nc2+1] = 3 end
     end
 
 
@@ -177,7 +177,7 @@ function M.showToast(prevUnit, newUnit)
         lines[#lines+1] = table.concat(grid[r])
     end
 
-    toast.showToast(table.concat(lines, "\n"), 0.75, { name="D2Coding", size=8, kerning = 2 })
+    toast.showToast(table.concat(lines, "\n"), 0.75, { name="D2Coding", size=8, kerning = 0, lineHeightMultiple = 0.9 })
 end
 
 return M
