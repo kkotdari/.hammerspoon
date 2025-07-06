@@ -310,7 +310,7 @@ end
 
 function enterPointingMode()
   _G.pointingsOn = true
-  toast.showToast("Numpad: Key-Mouse ON", 3.0)
+  toast.showToast("Numpad: Key-Mouse ON", 2.0)
   _G.toggleHotkeys(_G.allWindowHotkeys, false)
   _G.toggleHotkeys(_G.allPointingHotkeys, true)
   isPointerMode = true
@@ -319,7 +319,7 @@ end
 
 function exitPointingMode()
   _G.pointingsOn = false
-  toast.showToast("Numpad: Key-Mouse OFF ", 3.0)
+  toast.showToast("Numpad: Key-Mouse OFF ", 2.0)
   _G.toggleHotkeys(_G.allPointingHotkeys, false)
   _G.toggleHotkeys(_G.allWindowHotkeys, true)
   moveTimer:stop()

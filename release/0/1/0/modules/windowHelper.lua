@@ -177,7 +177,7 @@ function M.showToast(prevUnit, newUnit)
         lines[#lines+1] = table.concat(grid[r])
     end
 
-    toast.showToast(table.concat(lines, "\n"), 0.75, { name="D2Coding", size=8, lineHeightMultiple = 0.925 })
+    toast.showToast(table.concat(lines, "\n"), 1.25, { name="D2Coding", size=8, lineHeightMultiple = 0.925 })
 end
 
 return M
