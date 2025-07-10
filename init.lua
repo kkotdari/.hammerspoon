@@ -1,4 +1,4 @@
-local versionEls = { "0", "1", "0" }
+local versionEls = { "0", "2", "0" }
 local versionPath = table.concat(versionEls, "/")
 
 local path = "release/" .. versionPath
