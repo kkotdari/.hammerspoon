@@ -1,4 +1,4 @@
--- organizeWindows.lua
+-- window.lua
 
 local hotkey  = hs.hotkey
 local window  = hs.window
@@ -7,18 +7,21 @@ local fnutils = hs.fnutils
 
 hs.window.animationDuration = 0
 
+-- keypad keycodes
 local PAD_PLUS, PAD_MINUS = 69, 78
 local PAD1, PAD2, PAD3    = 83, 84, 85
 local PAD4, PAD5, PAD6    = 86, 87, 88
 local PAD7, PAD8, PAD9    = 89, 91, 92
 local PAD_DIV, PAD_MUL    = 75, 67   -- '/' and '*'
 local PAD_DOT             = 65       -- '.'
-local PAD_ENTER           = "padenter"
+local PAD_ENTER           = 76       -- Enter
 
 local MODS = {"cmd", "ctrl"}
 
+-- per-window state
 local windowStates = {}
 
+-- convert a frame to unit rect
 local function toUnitRect(frame, screenFrame)
     return {
         x = (frame.x - screenFrame.x) / screenFrame.w,
@@ -28,10 +31,12 @@ local function toUnitRect(frame, screenFrame)
     }
 end
 
+-- get active window
 local function activeWindow()
     return window.focusedWindow() or window.frontmostWindow()
 end
 
+-- ensure state exists
 local function ensureWindowState(win)
     local id = win:id()
     if not windowStates[id] then
@@ -45,6 +50,7 @@ local function ensureWindowState(win)
     return windowStates[id]
 end
 
+-- bind helper
 local function bindHotkey(mods, key, fn)
     local wrapped = function()
         if _G.pointingsOn then return end
@@ -56,9 +62,11 @@ local function bindHotkey(mods, key, fn)
     return hk
 end
 
+-- resize presets and labels
 local resizeStates = {{1,1},{1.5,1},{2,1},{3,1},{2,2},{3,2}}
-local ratioChars   = {"1","⅔","½","⅓","½","⅓"}
+local ratioChars   = {"1","⅔","½","⅓","¼","⅙"}
 
+-- shrink
 bindHotkey(MODS, PAD_MINUS, function()
     local w = activeWindow() if not w then return end
     local st = ensureWindowState(w)
@@ -70,6 +78,7 @@ bindHotkey(MODS, PAD_MINUS, function()
     st.lastUnit, st.resizeIndex = unit, idx
 end)
 
+-- enlarge
 bindHotkey(MODS, PAD_PLUS, function()
     local w = activeWindow() if not w then return end
     local st = ensureWindowState(w)
@@ -82,34 +91,38 @@ bindHotkey(MODS, PAD_PLUS, function()
     st.lastUnit, st.resizeIndex = unit, idx
 end)
 
+-- center
 bindHotkey(MODS, PAD5, function()
     local w = activeWindow() if not w then return end
     local st = ensureWindowState(w)
     local lu = st.lastUnit
     local unit = { x=(1-lu.w)/2, y=(1-lu.h)/2, w=lu.w, h=lu.h }
     w:moveToUnit(unit, 0)
-    toast.showToast("Centered")
+    toast.showToast("가운데로")
     st.lastUnit = unit
 end)
 
+-- restore
 bindHotkey(MODS, PAD_DOT, function()
     local w = activeWindow() if not w then return end
     local st = ensureWindowState(w)
     local unit = st.originalUnit
     w:moveToUnit(unit, 0)
-    toast.showToast("Restored")
+    toast.showToast("처음으로")
     st.lastUnit, st.resizeIndex = unit, 1
 end)
 
+-- fullscreen
 bindHotkey(MODS, PAD_ENTER, function()
     local w = activeWindow() if not w then return end
     local st = ensureWindowState(w)
     local unit = { x=0, y=0, w=1, h=1 }
     w:moveToUnit(unit, 0)
-    toast.showToast("Fullscreen")
+    toast.showToast("가장 크게")
     st.lastUnit, st.resizeIndex = unit, 1
 end)
 
+-- display move
 local function moveToDisplay(offset, symbol)
     local w = activeWindow() if not w then return end
     local st = ensureWindowState(w)
@@ -123,12 +136,11 @@ local function moveToDisplay(offset, symbol)
     toast.showToast(symbol)
     st.lastUnit = unit
 end
-
 bindHotkey(MODS, PAD_DIV, function() moveToDisplay(-1, "←") end)
 bindHotkey(MODS, PAD_MUL, function() moveToDisplay(1, "→") end)
 
-local dirArrows = {[1]="↙",[2]="↓",[3]="↘",[4]="←",[6]="→",[7]="↖",[8]="↑",[9]="↗"}
-
+-- directional move + clamp by actual frame
+local dirArrows = {[1]="옮기기: ↙",[2]="옮기기: ↓",[3]="옮기기: ↘",[4]="옮기기: ←",[6]="옮기기: →",[7]="옮기기: ↖",[8]="옮기기: ↑",[9]="옮기기: ↗"}
 local function moveDirection(dir)
     local w = activeWindow() if not w then return end
     local st = ensureWindowState(w)
@@ -144,14 +156,15 @@ local function moveDirection(dir)
     elseif dir == "8" then x, y = (1-wf)/2, 0
     elseif dir == "9" then x, y = 1-wf,     0
     end
-
+    -- 1) move by stored unit
     local unit = { x = x, y = y, w = wf, h = hf }
     w:moveToUnit(unit, 0)
     toast.showToast(dirArrows[tonumber(dir)])
-
+    -- 2) clamp by actual frame
     local f2, s2 = w:frame(), w:screen():frame()
     local clampUnit = toUnitRect(f2, s2)
     w:moveToUnit(clampUnit, 0)
+    -- 3) do not update stored state
 end
 
 bindHotkey(MODS, PAD1, function() moveDirection("1") end)
