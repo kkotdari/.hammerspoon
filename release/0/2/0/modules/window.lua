@@ -7,7 +7,7 @@ local fnutils = hs.fnutils
 
 hs.window.animationDuration = 0
 
--- keypad keycodes
+-- Keypad key codes
 local PAD_PLUS, PAD_MINUS = 69, 78
 local PAD1, PAD2, PAD3    = 83, 84, 85
 local PAD4, PAD5, PAD6    = 86, 87, 88
@@ -17,196 +17,131 @@ local PAD_DOT             = 65       -- '.'
 local PAD_ENTER           = 76       -- Enter
 
 local MODS = {"cmd", "ctrl"}
-
--- per-window state
 local windowStates = {}
 
--- convert a frame to unit rect
-local function toUnitRect(frame, screenFrame)
-    return {
-        x = (frame.x - screenFrame.x) / screenFrame.w,
-        y = (frame.y - screenFrame.y) / screenFrame.h,
-        w = frame.w / screenFrame.w,
-        h = frame.h / screenFrame.h,
-    }
+-- Convert pixel frame to unit rect
+local function toUnitRect(f, sf)
+    return { x=(f.x-sf.x)/sf.w, y=(f.y-sf.y)/sf.h, w=f.w/sf.w, h=f.h/sf.h }
 end
 
--- get active window
+-- Get active window
 local function activeWindow()
     return window.focusedWindow() or window.frontmostWindow()
 end
 
--- ensure state exists
+-- Initialize or retrieve window state
 local function ensureWindowState(win)
     local id = win:id()
     if not windowStates[id] then
-        local f, s = win:frame(), win:screen():frame()
-        windowStates[id] = {
-            originalUnit = toUnitRect(f, s),
-            lastUnit     = toUnitRect(f, s),
-            resizeIndex  = 1,
-            lastDir      = "5",
-        }
+        local f, sf = win:frame(), win:screen():frame()
+        windowStates[id] = { originalUnit=toUnitRect(f,sf), lastUnit=toUnitRect(f,sf), resizeIndex=nil, lastDir="5" }
     end
     return windowStates[id]
 end
 
--- bind helper
+-- Bind a hotkey
 local function bindHotkey(mods, key, fn)
-    local wrapped = function()
-        if _G.pointingsOn then return end
-        fn()
-    end
-    local hk = hotkey.new(mods, key, wrapped)
+    local hk = hotkey.new(mods, key, function() if not _G.pointingsOn then fn() end end)
     table.insert(_G.allWindowHotkeys, hk)
     hk:enable()
     return hk
 end
 
--- resize presets and labels
-local resizeStates = {{1,1}, {1.5,1}, {2,1}, {3,1}, {2,2}, {3,2}}
-local ratioChars   = {"× 1", "× ⅔", "× ½", "× ⅓", "× ¼", "× ⅙"}
+-- Resize presets and labels
+local resizeStates = { {1,1},{1.5,1},{2,1},{3,1},{1,1.5},{1.5,1.5},{2,1.5},{3,1.5},{1,2},{1.5,2},{2,2},{3,2},{1,3},{1.5,3},{2,3},{3,3},{8,4} }
+local ratioChars   = { "1×1","⅔×1","½×1","⅓×1","1×⅔","⅔×⅔","½×⅔","⅓×⅔","1×½","⅔×½","½×½","⅓×½","1×⅓","⅔×⅓","½×⅓","⅓×⅓","⅛×¼" }
 
--- helper: compute position based on direction
+-- Compute position by direction
 local function getPositionByDir(dir, wf, hf)
-    if     dir == "1" then return 0,        1 - hf
-    elseif dir == "2" then return (1 - wf)/2, 1 - hf
-    elseif dir == "3" then return 1 - wf,     1 - hf
-    elseif dir == "4" then return 0,        (1 - hf)/2
-    elseif dir == "5" then return (1 - wf)/2, (1 - hf)/2
-    elseif dir == "6" then return 1 - wf,     (1 - hf)/2
-    elseif dir == "7" then return 0,        0
-    elseif dir == "8" then return (1 - wf)/2, 0
-    elseif dir == "9" then return 1 - wf,     0
-    end
-    return (1 - wf)/2, (1 - hf)/2
+    local map = { ["1"]={0,1-hf}, ["2"]={(1-wf)/2,1-hf}, ["3"]={1-wf,1-hf}, ["4"]={0,(1-hf)/2}, ["5"]={(1-wf)/2,(1-hf)/2}, ["6"]={1-wf,(1-hf)/2}, ["7"]={0,0}, ["8"]={(1-wf)/2,0}, ["9"]={1-wf,0} }
+    return table.unpack(map[dir] or map["5"])
 end
 
--- find nearest preset index based on current unit
-local function findNearestIndex(wf, hf)
-    local area = wf * hf
+-- Find closest resize index
+local function findClosestIndex(area, preferHigher)
     local bestIdx, bestDiff
     for i, ab in ipairs(resizeStates) do
-        local a, b   = ab[1], ab[2]
-        local pw, ph = 1 / a, 1 / b
-        local diff   = math.abs((pw * ph) - area)
-        if not bestDiff or diff < bestDiff then
-            bestDiff = diff
-            bestIdx  = i
+        local ar = 1/(ab[1]*ab[2])
+        local diff = math.abs(ar-area)
+        if not bestDiff or diff<bestDiff or (diff==bestDiff and ((preferHigher and i>bestIdx) or (not preferHigher and i<bestIdx))) then
+            bestDiff, bestIdx = diff, i
         end
     end
-    return bestIdx or 1
+    return bestIdx
 end
 
--- shrink (줄이기)
-bindHotkey(MODS, PAD_MINUS, function()
+-- Unified resize logic
+local function resizeWindow(isShrink)
     local w = activeWindow() if not w then return end
     local st = ensureWindowState(w)
-    local cur = findNearestIndex(st.lastUnit.w, st.lastUnit.h)
-    -- already smallest?
-    if cur >= #resizeStates then
-        toast.showToast("더 줄일 수 없어요")
-        return
-    end
-    local next = cur + 1
-    local a, b = table.unpack(resizeStates[next])
-    local wf, hf = 1 / a, 1 / b
-    local x, y   = getPositionByDir(st.lastDir, wf, hf)
-    local unit   = { x = x, y = y, w = wf, h = hf }
-    w:moveToUnit(unit, 0)
-    toast.showToast(ratioChars[next])
-    st.lastUnit, st.resizeIndex = unit, next
-end)
+    local area = st.lastUnit.w * st.lastUnit.h
+    local baseIdx = st.resizeIndex or findClosestIndex(area, isShrink)
+    local newIdx  = isShrink and baseIdx+1 or baseIdx-1
+    if newIdx<1 or newIdx>#resizeStates then toast.showToast("Cannot change") return end
+    local ab = resizeStates[newIdx]
+    local wf, hf = 1/ab[1], 1/ab[2]
+    local x,y = getPositionByDir(st.lastDir, wf, hf)
+    local unit = { x=x, y=y, w=wf, h=hf }
+    w:moveToUnit(unit,0); toast.showToast(ratioChars[newIdx])
+    st.lastUnit, st.resizeIndex = unit, newIdx
+end
+bindHotkey(MODS, PAD_MINUS, function() resizeWindow(true) end)
+bindHotkey(MODS, PAD_PLUS,  function() resizeWindow(false) end)
 
--- enlarge (늘리기)
-bindHotkey(MODS, PAD_PLUS, function()
-    local w = activeWindow() if not w then return end
-    local st = ensureWindowState(w)
-    local cur = findNearestIndex(st.lastUnit.w, st.lastUnit.h)
-    -- already largest?
-    if cur <= 1 then
-        toast.showToast("더 늘릴 수 없어요")
-        return
-    end
-    local next = cur - 1
-    local a, b   = table.unpack(resizeStates[next])
-    local wf, hf = 1 / a, 1 / b
-    local x, y   = getPositionByDir(st.lastDir, wf, hf)
-    local unit   = { x = x, y = y, w = wf, h = hf }
-    w:moveToUnit(unit, 0)
-    toast.showToast(ratioChars[next])
-    st.lastUnit, st.resizeIndex = unit, next
-end)
-
--- center
+-- Center window
 bindHotkey(MODS, PAD5, function()
-    local w = activeWindow() if not w then return end
-    local st = ensureWindowState(w)
-    local lu   = st.lastUnit
-    local unit = { x = (1 - lu.w)/2, y = (1 - lu.h)/2, w = lu.w, h = lu.h }
-    w:moveToUnit(unit, 0)
-    toast.showToast("가운데로")
+    local w=activeWindow() if not w then return end
+    local st=ensureWindowState(w)
+    local u=st.lastUnit
+    local unit={x=(1-u.w)/2,y=(1-u.h)/2,w=u.w,h=u.h}
+    w:moveToUnit(unit,0); toast.showToast("Center")
     st.lastUnit, st.lastDir = unit, "5"
 end)
 
--- restore
+-- Restore original size
 bindHotkey(MODS, PAD_DOT, function()
-    local w = activeWindow() if not w then return end
-    local st = ensureWindowState(w)
-    local unit                = st.originalUnit
-    w:moveToUnit(unit, 0)
-    toast.showToast("처음으로")
-    st.lastUnit, st.resizeIndex, st.lastDir = unit, 1, "5"
+    local w=activeWindow() if not w then return end
+    local st=ensureWindowState(w)
+    local unit=st.originalUnit
+    w:moveToUnit(unit,0); toast.showToast("Restore")
+    st.lastUnit, st.resizeIndex = unit, nil
 end)
 
--- fullscreen
+-- Fullscreen
 bindHotkey(MODS, PAD_ENTER, function()
-    local w = activeWindow() if not w then return end
-    local st = ensureWindowState(w)
-    local unit = { x = 0, y = 0, w = 1, h = 1 }
-    w:moveToUnit(unit, 0)
-    toast.showToast("가장 크게")
-    st.lastUnit, st.resizeIndex, st.lastDir = unit, 1, "5"
+    local w=activeWindow() if not w then return end
+    local st=ensureWindowState(w)
+    local unit={x=0,y=0,w=1,h=1}
+    w:moveToUnit(unit,0); toast.showToast("Fullscreen")
+    st.lastUnit, st.resizeIndex = unit, 1
 end)
 
--- display move
-local function moveToDisplay(offset, symbol)
-    local w  = activeWindow() if not w then return end
-    local st = ensureWindowState(w)
-    local f, fs = w:frame(), w:screen():frame()
-    local unit  = toUnitRect(f, fs)
-    local all   = screen.allScreens()
-    local idx   = fnutils.indexOf(all, w:screen())
-    local tgt   = all[(idx - 1 + offset) % #all + 1]
-    w:moveToScreen(tgt)
-    w:moveToUnit(unit, 0)
-    toast.showToast(symbol)
-    st.lastUnit = unit
+-- Move across displays
+local function moveToDisplay(offset,sym)
+    local w=activeWindow() if not w then return end
+    local f,sf=w:frame(),w:screen():frame()
+    local unit=toUnitRect(f,sf)
+    local scr=screen.allScreens()
+    local i=fnutils.indexOf(scr,w:screen())
+    local tgt=scr[(i-1+offset)%#scr+1]
+    w:moveToScreen(tgt); w:moveToUnit(unit,0); toast.showToast(sym)
+    ensureWindowState(w).lastUnit=unit
 end
 bindHotkey(MODS, PAD_DIV, function() moveToDisplay(-1, "←") end)
 bindHotkey(MODS, PAD_MUL, function() moveToDisplay(1,  "→") end)
 
--- directional move + clamp
-local dirArrows = {[1]="↙",[2]="↓",[3]="↘",[4]="←",[6]="→",[7]="↖",[8]="↑",[9]="↗"}
+-- Directional move and clamp
+local dirArrows={[1]="↙",[2]="↓",[3]="↘",[4]="←",[6]="→",[7]="↖",[8]="↑",[9]="↗"}
 local function moveDirection(dir)
-    local w  = activeWindow() if not w then return end
-    local st = ensureWindowState(w)
-    st.lastDir = dir
-    local lu  = st.lastUnit
-    local wf, hf = lu.w, lu.h
-    local x, y   = getPositionByDir(dir, wf, hf)
-    local unit   = { x = x, y = y, w = wf, h = hf }
-    w:moveToUnit(unit, 0)
-    toast.showToast("옮기기: " .. dirArrows[tonumber(dir)])
-    local f2, s2    = w:frame(), w:screen():frame()
-    local clampUnit = toUnitRect(f2, s2)
-    w:moveToUnit(clampUnit, 0)
+    local w=activeWindow() if not w then return end
+    local st=ensureWindowState(w)
+    st.lastDir=dir
+    local u=st.lastUnit
+    local x,y=getPositionByDir(dir,u.w,u.h)
+    w:moveToUnit({x=x,y=y,w=u.w,h=u.h},0); toast.showToast(dirArrows[tonumber(dir)])
+    local f2,sf2=w:frame(),w:screen():frame()
+    w:moveToUnit(toUnitRect(f2,sf2),0)
 end
-bindHotkey(MODS, PAD1, function() moveDirection("1") end)
-bindHotkey(MODS, PAD2, function() moveDirection("2") end)
-bindHotkey(MODS, PAD3, function() moveDirection("3") end)
-bindHotkey(MODS, PAD4, function() moveDirection("4") end)
-bindHotkey(MODS, PAD6, function() moveDirection("6") end)
-bindHotkey(MODS, PAD7, function() moveDirection("7") end)
-bindHotkey(MODS, PAD8, function() moveDirection("8") end)
-bindHotkey(MODS, PAD9, function() moveDirection("9") end)
+for d,k in pairs({["1"]=PAD1,["2"]=PAD2,["3"]=PAD3,["4"]=PAD4,["6"]=PAD6,["7"]=PAD7,["8"]=PAD8,["9"]=PAD9}) do
+    bindHotkey(MODS,k,function() moveDirection(d) end)
+end
