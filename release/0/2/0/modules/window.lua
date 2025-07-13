@@ -48,8 +48,8 @@ local function bindHotkey(mods, key, fn)
 end
 
 -- Resize presets and labels
-local resizeStates = { {1,1},{1.5,1},{2,1},{3,1},{1,1.5},{1.5,1.5},{2,1.5},{3,1.5},{1,2},{1.5,2},{2,2},{3,2},{1,3},{1.5,3},{2,3},{3,3},{8,4} }
-local ratioChars   = { "1×1","⅔×1","½×1","⅓×1","1×⅔","⅔×⅔","½×⅔","⅓×⅔","1×½","⅔×½","½×½","⅓×½","1×⅓","⅔×⅓","½×⅓","⅓×⅓","⅛×¼" }
+local resizeStates = {{1,1}, {1.5,1}, {2,1}, {3,1}, {1,1.5}, {1.5,1.5}, {2,1.5}, {3,1.5}, {1,2}, {1.5,2}, {2,2}, {3,2}, {1,3}, {1.5,3}, {2,3}, {3,3}, {8,4}}
+local ratioChars   = {"1×1","⅔×1","½×1","⅓×1","1×⅔","⅔×⅔","½×⅔","⅓×⅔","1×½","⅔×½","½×½","⅓×½","1×⅓","⅔×⅓","½×⅓","⅓×⅓","⅛×¼"}
 
 -- Compute position by direction
 local function getPositionByDir(dir, wf, hf)
@@ -88,7 +88,7 @@ end
 bindHotkey(MODS, PAD_MINUS, function() resizeWindow(true) end)
 bindHotkey(MODS, PAD_PLUS,  function() resizeWindow(false) end)
 
--- Center window
+-- Center window position
 bindHotkey(MODS, PAD5, function()
     local w=activeWindow() if not w then return end
     local st=ensureWindowState(w)
@@ -116,32 +116,51 @@ bindHotkey(MODS, PAD_ENTER, function()
     st.lastUnit, st.resizeIndex = unit, 1
 end)
 
--- Move across displays
-local function moveToDisplay(offset,sym)
-    local w=activeWindow() if not w then return end
-    local f,sf=w:frame(),w:screen():frame()
-    local unit=toUnitRect(f,sf)
-    local scr=screen.allScreens()
-    local i=fnutils.indexOf(scr,w:screen())
-    local tgt=scr[(i-1+offset)%#scr+1]
-    w:moveToScreen(tgt); w:moveToUnit(unit,0); toast.showToast(sym)
-    ensureWindowState(w).lastUnit=unit
+-- Move across displays with clamp
+local function moveToDisplay(offset, sym)
+    local w = activeWindow() if not w then return end
+    local st = ensureWindowState(w)
+    local f, sf = w:frame(), w:screen():frame()
+    local unit = toUnitRect(f, sf)
+    local scr = screen.allScreens()
+    local i = fnutils.indexOf(scr, w:screen())
+    local tgt = scr[(i - 1 + offset) % #scr + 1]
+    w:moveToScreen(tgt)
+    w:moveToUnit(unit, 0)
+    -- clamp to usableFrame
+    local f2 = w:frame()
+    local uf = tgt:usableFrame()
+    local cx = math.max(uf.x, math.min(f2.x, uf.x + uf.w - f2.w))
+    local cy = math.max(uf.y, math.min(f2.y, uf.y + uf.h - f2.h))
+    w:setFrame({ x = cx, y = cy, w = f2.w, h = f2.h }, 0)
+    -- update state
+    local newSF = w:screen():frame()
+    st.lastUnit = toUnitRect(w:frame(), newSF)
+    toast.showToast(sym)
 end
 bindHotkey(MODS, PAD_DIV, function() moveToDisplay(-1, "←") end)
 bindHotkey(MODS, PAD_MUL, function() moveToDisplay(1,  "→") end)
+bindHotkey(MODS, PAD_MUL, function() moveToDisplay(1,  "→") end)
 
--- Directional move and clamp
-local dirArrows={[1]="↙",[2]="↓",[3]="↘",[4]="←",[6]="→",[7]="↖",[8]="↑",[9]="↗"}
+-- Directional move with clamp
+local dirArrows = { [1]="↙", [2]="↓", [3]="↘", [4]="←", [6]="→", [7]="↖", [8]="↑", [9]="↗" }
 local function moveDirection(dir)
-    local w=activeWindow() if not w then return end
-    local st=ensureWindowState(w)
-    st.lastDir=dir
-    local u=st.lastUnit
-    local x,y=getPositionByDir(dir,u.w,u.h)
-    w:moveToUnit({x=x,y=y,w=u.w,h=u.h},0); toast.showToast(dirArrows[tonumber(dir)])
-    local f2,sf2=w:frame(),w:screen():frame()
-    w:moveToUnit(toUnitRect(f2,sf2),0)
+    local w = activeWindow() if not w then return end
+    local st = ensureWindowState(w)
+    st.lastDir = dir
+    local u = st.lastUnit
+    local wf, hf = u.w, u.h
+    -- compute and apply move
+    local x, y = getPositionByDir(dir, wf, hf)
+    w:moveToUnit({ x = x, y = y, w = wf, h = hf }, 0)
+    toast.showToast(dirArrows[tonumber(dir)])
+    -- clamp to usable frame
+    local f2 = w:frame()
+    local uf = w:screen():usableFrame()
+    local cx = math.max(uf.x, math.min(f2.x, uf.x + uf.w - f2.w))
+    local cy = math.max(uf.y, math.min(f2.y, uf.y + uf.h - f2.h))
+    w:setFrame({ x = cx, y = cy, w = f2.w, h = f2.h }, 0)
 end
-for d,k in pairs({["1"]=PAD1,["2"]=PAD2,["3"]=PAD3,["4"]=PAD4,["6"]=PAD6,["7"]=PAD7,["8"]=PAD8,["9"]=PAD9}) do
-    bindHotkey(MODS,k,function() moveDirection(d) end)
+for dir, key in pairs({ ["1"]=PAD1, ["2"]=PAD2, ["3"]=PAD3, ["4"]=PAD4, ["6"]=PAD6, ["7"]=PAD7, ["8"]=PAD8, ["9"]=PAD9 }) do
+    bindHotkey(MODS, key, function() moveDirection(dir) end)
 end
