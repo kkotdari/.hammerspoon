@@ -154,7 +154,7 @@ for dir, key in pairs({
 end
 
 -- Restore original size
-bindHotkey(MOVE_MODS, PAD_DOT, function()
+bindHotkey(SIZE_MODS, PAD_DOT, function()
     local w = activeWindow() if not w then return end
     local st = ensureWindowState(w)
     w:moveToUnit(st.originalUnit, 0)
@@ -163,7 +163,7 @@ bindHotkey(MOVE_MODS, PAD_DOT, function()
 end)
 
 -- Fullscreen
-bindHotkey(MOVE_MODS, PAD_ENTER, function()
+bindHotkey(SIZE_MODS, PAD_ENTER, function()
     local w = activeWindow() if not w then return end
     local st = ensureWindowState(w)
     local unit = { x=0, y=0, w=1, h=1 }
@@ -172,48 +172,92 @@ bindHotkey(MOVE_MODS, PAD_ENTER, function()
     st.lastUnit = unit
 end)
 
--- Size adjust: cmd+shift + numpad
+-- Size adjust: cmd+shift + (2·4·6·8)
 local function sizeAdjust(dir)
     local w = activeWindow() if not w then return end
     local st = ensureWindowState(w)
 
-    -- current indices
-    local curW = st.idxW or 1
-    local curH = st.idxH or 1
+    -- if window is centered and key is 5, shrink both axes
+    if dir == "5" and st.lastDir == "5" then
+        st.idxW = st.idxW or findStepIndex(st.lastUnit.w)
+        st.idxH = st.idxH or findStepIndex(st.lastUnit.h)
+        -- shrink both
+        local newW = math.min(#sizeSteps, st.idxW + 1)
+        local newH = math.min(#sizeSteps, st.idxH + 1)
+        local wf, hf = sizeSteps[newW], sizeSteps[newH]
+        local x, y   = getPositionByDir(st.lastDir, wf, hf)
+        local unit   = { x = x, y = y, w = wf, h = hf }
+        w:moveToUnit(unit, 0)
+        toast.showToast(sizeChars[newW].."×"..sizeChars[newH])
+        -- clamp
+        local f2 = w:frame()
+        local sf = w:screen():frame()
+        w:setFrame(clampFrame(f2, sf), 0)
+        -- update state
+        st.lastUnit, st.idxW, st.idxH = toUnitRect(w:frame(), sf), newW, newH
+        return
+    end
 
-    -- axis actions
-    local actionW, actionH
-    if dir == "8" then actionH = "enlarge"
-    elseif dir == "2" then actionH = "shrink" end
-    if dir == "6" then actionW = "enlarge"
-    elseif dir == "4" then actionW = "shrink" end
-    if dir == "9" then actionW,actionH = "enlarge","enlarge"
-    elseif dir == "1" then actionW,actionH = "shrink","shrink"
-    elseif dir == "7" then actionW,actionH = "shrink","enlarge"
-    elseif dir == "3" then actionW,actionH = "enlarge","shrink" end
+    -- use lastDir to decide which edges it's "touching"
+    local d = st.lastDir
+    local top    = (d=="7" or d=="8" or d=="9")
+    local bottom = (d=="1" or d=="2" or d=="3")
+    local left   = (d=="1" or d=="4" or d=="7")
+    local right  = (d=="3" or d=="6" or d=="9")
 
-    -- new indices
-    local newW, newH = curW, curH
-    if actionW == "enlarge" then newW = math.max(1, curW-1)
-    elseif actionW == "shrink" then newW = math.min(#sizeSteps, curW+1) end
-    if actionH == "enlarge" then newH = math.max(1, curH-1)
-    elseif actionH == "shrink" then newH = math.min(#sizeSteps, curH+1) end
+    -- build allowed mappings
+    local vMap, hMap = {}, {}
+    if top then
+        vMap["2"], vMap["8"] = "enlarge", "shrink"
+    end
+    if bottom then
+        vMap["8"], vMap["2"] = "enlarge", "shrink"
+    end
+    if left then
+        hMap["6"], hMap["4"] = "enlarge", "shrink"
+    end
+    if right then
+        hMap["4"], hMap["6"] = "enlarge", "shrink"
+    end
+    if not left and not right then
+        hMap["4"], hMap["6"], hMap["5"] = "enlarge", "enlarge", "shrink"
+    end
+    if not top and not bottom then
+        vMap["8"], vMap["2"], vMap["5"] = "enlarge", "enlarge", "shrink"
+    end
 
-    -- apply size
+    -- current step indices
+    local curW = st.idxW or findStepIndex(st.lastUnit.w)
+    local curH = st.idxH or findStepIndex(st.lastUnit.h)
+
+    -- pick action for this key
+    local actionW = hMap[dir]
+    local actionH = vMap[dir]
+
+    -- compute new indices
+    local function adj(idx, act)
+        if act=="enlarge" then return math.max(1, idx-1)
+        elseif act=="shrink" then return math.min(#sizeSteps, idx+1)
+        else return idx end
+    end
+    local newW = adj(curW, actionW)
+    local newH = adj(curH, actionH)
+
+    -- apply new size
     local wf, hf = sizeSteps[newW], sizeSteps[newH]
     local x, y    = getPositionByDir(st.lastDir, wf, hf)
     w:moveToUnit({ x=x, y=y, w=wf, h=hf }, 0)
     toast.showToast(sizeChars[newW] .. "×" .. sizeChars[newH])
 
-    -- clamp
+    -- clamp within screen frame
     local f2 = w:frame()
-    local uf = w:screen():frame()
-    w:setFrame(clampFrame(f2, uf), 0)
+    local sf = w:screen():frame()
+    w:setFrame(clampFrame(f2, sf), 0)
 
     -- update state
-    st.lastUnit = toUnitRect(w:frame(), w:screen():frame())
+    st.lastUnit = toUnitRect(w:frame(), sf)
     st.idxW, st.idxH = newW, newH
 end
-for dir, key in pairs({["1"]=PAD1,["2"]=PAD2,["3"]=PAD3,["4"]=PAD4,["6"]=PAD6,["7"]=PAD7,["8"]=PAD8,["9"]=PAD9}) do
+for dir, key in pairs({["1"]=PAD1,["2"]=PAD2,["3"]=PAD3,["4"]=PAD4,["5"]=PAD5,["6"]=PAD6,["7"]=PAD7,["8"]=PAD8,["9"]=PAD9}) do
     bindHotkey(SIZE_MODS, key, function() sizeAdjust(dir) end)
 end
