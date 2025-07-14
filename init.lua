@@ -1,7 +1,7 @@
 -----------------------------------------------------------------
 -- Load your modules in order
 --------------------------------------------------------------------
-local version = "0.3.0"
+local version = "0.3.1"
 
 store = require("/configs/store") -- manage global shared state
 toast = require("/utils/toast") -- alert helper (toast notifications)
