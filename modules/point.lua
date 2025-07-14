@@ -334,7 +334,7 @@ function exitPointingMode()
 end
 
 local function togglePointingMode()
-  if _G.pointingsOn then
+  if store.pointingsOn then
     exitPointingMode()
   else
     enterPointingMode()
