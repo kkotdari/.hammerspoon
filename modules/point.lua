@@ -212,25 +212,25 @@ end
 --------------------------------------------------------------------
 -- pointing-mode hotkeys storage
 --------------------------------------------------------------------
-_G.allPointingHotkeys = _G.allPointingHotkeys or {}
+store.allPointingHotkeys = store.allPointingHotkeys or {}
 
 local function bindPointingKey(mods, key, fnDown, fnUp)
     local wrappedDown = function()
-        if not _G.pointingsOn then return end
+        if not store.pointingsOn then return end
         fnDown()
     end
 
     local wrappedUp = nil
     if fnUp then
         wrappedUp = function()
-            if not _G.pointingsOn then return end
+            if not store.pointingsOn then return end
             fnUp()
         end
     end
 
     local hk = hotkey.new(mods, key, wrappedDown, wrappedUp, wrappedDown)
     hk:disable()
-    table.insert(_G.allPointingHotkeys, hk)
+    table.insert(store.allPointingHotkeys, hk)
     return hk
 end
 
@@ -263,25 +263,25 @@ bindPointingKey({}, 92,
 -- Arrow keys (NumPad 8/5/4/6) → move cursor
 --------------------------------------------------------------------
 bindPointingKey({}, 91, moveFunction(91,  0, -1))  -- NumPad 8 → up
-bindPointingKey({}, 87, moveFunction(87,  0,  1))  -- NumPad 2 → down
+bindPointingKey({}, 87, moveFunction(87,  0,  1))  -- NumPad 5 → down
 bindPointingKey({}, 86, moveFunction(86, -1,  0))  -- NumPad 4 → left
 bindPointingKey({}, 88, moveFunction(88,  1,  0))  -- NumPad 6 → right
 
 --------------------------------------------------------------------
 -- Cmd+alt + NumPad keys → drag in four directions
 --------------------------------------------------------------------
-bindPointingKey({"cmd", "alt"}, 91, dragFunction(91,  0, -1))  -- NumPad 8 → drag up
-bindPointingKey({"cmd", "alt"}, 87, dragFunction(87,  0,  1))  -- NumPad 2 → drag down
-bindPointingKey({"cmd", "alt"}, 86, dragFunction(86, -1,  0))  -- NumPad 4 → drag left
-bindPointingKey({"cmd", "alt"}, 88, dragFunction(88,  1,  0))  -- NumPad 6 → drag right
+bindPointingKey({"cmd", "shift"}, 91, dragFunction(91,  0, -1))  -- NumPad 8 → drag up
+bindPointingKey({"cmd", "shift"}, 87, dragFunction(87,  0,  1))  -- NumPad 5 → drag down
+bindPointingKey({"cmd", "shift"}, 86, dragFunction(86, -1,  0))  -- NumPad 4 → drag left
+bindPointingKey({"cmd", "shift"}, 88, dragFunction(88,  1,  0))  -- NumPad 6 → drag right
 
 --------------------------------------------------------------------
 -- Cmd+Ctrl + NumPad keys → scroll
 --------------------------------------------------------------------
-bindPointingKey({"cmd", "ctrl"}, 91, scrollFunction(91,  1,  0))  -- NumPad 8 → scroll up
-bindPointingKey({"cmd", "ctrl"}, 87, scrollFunction(87, -1,  0))  -- NumPad 2 → scroll down
-bindPointingKey({"cmd", "ctrl"}, 86, scrollFunction(86,  0,  1))  -- NumPad 4 → scroll left
-bindPointingKey({"cmd", "ctrl"}, 88, scrollFunction(88,  0, -1))  -- NumPad 6 → scroll right
+bindPointingKey({"cmd", "ctrl"}, 91, scrollFunction(91,  0,  1))  -- NumPad 8 → scroll up
+bindPointingKey({"cmd", "ctrl"}, 87, scrollFunction(87,  0, -1))  -- NumPad 5 → scroll down
+bindPointingKey({"cmd", "ctrl"}, 86, scrollFunction(86, -1,  0))  -- NumPad 4 → scroll left
+bindPointingKey({"cmd", "ctrl"}, 88, scrollFunction(88,  1,  0))  -- NumPad 6 → scroll right
 
 --------------------------------------------------------------------
 -- NumPad . → teleport cursor
@@ -297,35 +297,51 @@ bindPointingKey({}, 82,
 --------------------------------------------------------------------
 -- enter/exit pointing-mode (NumLock = 71)
 --------------------------------------------------------------------
-local function enterPointingMode()
-    _G.pointingsOn = true
-    toast.showToast("🖱️ Mouse mode", 1.5)
-    indicator.showIndicator("mode", "🖱️ Mouse mode")
-    _G.toggleHotkeys(_G.allWindowHotkeys, false)
-    _G.toggleHotkeys(_G.allPointingHotkeys, true)
+local menu = hs.menubar.new()
+local isPointerMode = false
+
+local function updateTitle()
+  if isPointerMode then
+    menu:setTitle("Key-Mouse: ON")
+  else
+    menu:setTitle("Key-Mouse: OFF")
+  end
 end
 
-local function exitPointingMode()
-    _G.pointingsOn = false
-    toast.showToast("🖥️ Window mode", 1.5)
-    indicator.showIndicator("mode", "🖥️ Window mode")
-    _G.toggleHotkeys(_G.allPointingHotkeys, false)
-    _G.toggleHotkeys(_G.allWindowHotkeys, true)
-
-    moveTimer:stop()
-    dragTimer:stop()
-    for _, t in pairs(scrollTimers) do t:stop() end
-
-    pressedDirs = {}
-    dragActive  = false
-    step        = MOVE_STEP
-    dragStep    = MOVE_STEP
+function enterPointingMode()
+  store.pointingsOn = true
+  toast.showToast("Numpad: Key-Mouse ON", 2.0)
+  store.toggleHotkeys(store.allWindowHotkeys, false)
+  store.toggleHotkeys(store.allPointingHotkeys, true)
+  isPointerMode = true
+  updateTitle()
 end
 
-hotkey.new({}, 71, function()
-    if _G.pointingsOn then
-        exitPointingMode()
-    else
-        enterPointingMode()
-    end
-end):enable()
+function exitPointingMode()
+  store.pointingsOn = false
+  toast.showToast("Numpad: Key-Mouse OFF ", 2.0)
+  store.toggleHotkeys(store.allPointingHotkeys, false)
+  store.toggleHotkeys(store.allWindowHotkeys, true)
+  moveTimer:stop()
+  dragTimer:stop()
+  for _, t in pairs(scrollTimers) do t:stop() end
+  pressedDirs = {}
+  dragActive  = false
+  step        = MOVE_STEP
+  dragStep    = MOVE_STEP
+  isPointerMode = false
+  updateTitle()
+end
+
+local function togglePointingMode()
+  if _G.pointingsOn then
+    exitPointingMode()
+  else
+    enterPointingMode()
+  end
+end
+
+hotkey.new({}, 71, togglePointingMode):enable()
+
+menu:setClickCallback(togglePointingMode)
+updateTitle()

@@ -67,6 +67,10 @@ local ignoreFnFor = {
 -- NumPad keyCodes to patch (with comments)
 --------------------------------------------------------------------
 local padCodes = {
+    [65] = true,  -- NumPad .
+    [69] = true,  -- NumPad +
+    [76] = true,  -- NumPad enter
+    [78] = true,  -- NumPad -
     [83] = true,  -- NumPad 1
     [84] = true,  -- NumPad 2
     [85] = true,  -- NumPad 3
@@ -100,7 +104,7 @@ local function logKey(e)
     local keyName = codeToKey[code] or tostring(code)
 
 		local rawF    = e:getFlags()
-    -- if this is a “special” key, mask out fn before printing
+
     local f = { cmd=rawF.cmd, ctrl=rawF.ctrl, alt=rawF.alt, shift=rawF.shift, fn=rawF.fn }
     if ignoreFnFor[keyName] then
         f.fn = false
@@ -109,9 +113,9 @@ local function logKey(e)
     local mods = flagStr(f)
 
     if mods == "none" then
-      -- print(string.format("[INFO] Key event: %s (%s)", keyName, tName))
+      print(string.format("[INFO] Key event: %s (%s)", keyName, tName))
     else
-      -- print(string.format("[INFO] Key event: %s + %s (%s)", mods, keyName, tName))
+      print(string.format("[INFO] Key event: %s + %s (%s)", mods, keyName, tName))
     end
 	end
 end
@@ -122,14 +126,17 @@ end
 local currentMods = {}
 
 _G.handleFlagChange = eventtap.new({ hs.eventtap.event.types.flagsChanged }, function(e)
-    -- print(string.format("[DEBUG] flag currentMods-before: %s", hs.inspect(currentMods)))
-    local f = e:getFlags()
-    -- print(string.format("[DEBUG] flag modifiers: %s", hs.inspect(f)))
-    currentMods.cmd   = f.cmd
-    currentMods.ctrl  = f.ctrl
-    currentMods.alt   = f.alt
-    currentMods.shift = f.shift
-    -- print(string.format("[DEBUG] flag currentMods-after: %s", hs.inspect(currentMods)))
+  local f = e:getFlags()
+    
+  currentMods.cmd   = f.cmd
+  currentMods.ctrl  = f.ctrl
+  currentMods.alt   = f.alt
+  currentMods.shift = f.shift
+    
+  if not (currentMods.cmd and currentMods.ctrl) then
+    store.seqMode = false
+  end
+
     return false
 end)
 _G.handleFlagChange:start()
@@ -143,9 +150,7 @@ _G.handleKeyInput = eventtap.new(
     if not padCodes[code] then return false end
 
 		local phys  = eventtap.checkKeyboardModifiers()
-    -- print(string.format("[DEBUG] Physical modifiers: %s", hs.inspect(phys)))
 		local flags = e:getFlags()
-    -- print(string.format("[DEBUG] flag modifiers-before: %s", hs.inspect(flags)))
     
 		for k, v in pairs(currentMods) do
       if flags[k] ~= v then
@@ -154,7 +159,6 @@ _G.handleKeyInput = eventtap.new(
     end
 
     e:setFlags(flags)
-    -- print(string.format("[DEBUG] flag modifiers-after: %s", hs.inspect(e:getFlags())))
 
 		logKey(e)
 		return false
@@ -168,5 +172,4 @@ _G.handleKeyInput:start()
 hotkey.bind({"cmd", "ctrl"}, "f12", function()
 	keyLogEnabled = not keyLogEnabled
 	toast.showToast(keyLogEnabled and "🟢 Key log on" or "⛔️ Key log off", 1.0)
-	-- print(string.format("[DEBUG] %s", keyLogEnabled and "ON" or "OFF"))
 end)

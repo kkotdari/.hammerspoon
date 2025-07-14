@@ -1,14 +1,17 @@
 --------------------------------------------------------------------
 -- Global state declarations
 --------------------------------------------------------------------
-_G.pointingsOn        = false      -- when true, pointing‐mode is active
-_G.allWindowHotkeys   = {}         -- populated by windows.lua
-_G.allPointingHotkeys = {}         -- populated by pointings.lua
+local M = {}
+
+M.seqMode = false
+M.pointingsOn        = false      -- when true, pointing‐mode is active
+M.allWindowHotkeys   = {}         -- populated by windows.lua
+M.allPointingHotkeys = {}         -- populated by pointings.lua
 
 --------------------------------------------------------------------
 -- Common function to toggle any list of hotkeys on or off
 --------------------------------------------------------------------
-_G.toggleHotkeys = function(hotkeyList, enabled)
+M.toggleHotkeys = function(hotkeyList, enabled)
     for _, hk in ipairs(hotkeyList) do
         if enabled then
             hk:enable()
@@ -17,3 +20,5 @@ _G.toggleHotkeys = function(hotkeyList, enabled)
         end
     end
 end
+
+return M

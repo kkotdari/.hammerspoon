@@ -25,7 +25,6 @@ local PAD_ENTER = 76
 
 local MOVE_MODS = {"cmd", "ctrl"}
 local windowStates = {}
-local seqMode = false
 
 local sizeSteps = {1, 2/3, 1/2, 1/3, 1/6}
 local sizeChars = {"1", "⅔", "½", "⅓", "⅙"}
@@ -119,19 +118,6 @@ local function moveWindow(dir)
     st.lastUnit = toUnitRect(w:frame(), sf2)
 end
 
-wfilter.new():subscribe(wfilter.windowFocused, function()
-  seqMode = false
-end)
-local prevFlags = eventtap.checkKeyboardModifiers()
-eventtap.new({ eventtap.event.types.flagsChanged }, function(e)
-  local new = e:getFlags()
-  if (prevFlags.cmd   and not new.cmd)
-  or (prevFlags.ctrl  and not new.ctrl) then
-    seqMode = false
-  end
-  prevFlags = new
-end):start()
-
 local function sizeAdjust(dir)
     local w = activeWindow() if not w then return end
     local st = ensureWindowState(w)
@@ -194,9 +180,9 @@ end
 
 local function bindHotkey(mods, key, fn)
     local hk = hotkey.new(mods, key, function()
-        if not _G.pointingsOn then fn() end
+        if not store.pointingsOn then fn() end
     end)
-    table.insert(_G.allWindowHotkeys, hk)
+    table.insert(store.allWindowHotkeys, hk)
     hk:enable()
     return hk
 end
@@ -213,10 +199,10 @@ for dir, key in pairs({
     ["9"] = PAD9,
 }) do
     bindHotkey(MOVE_MODS, key, function()
-        hs.printf("[DEBUG] seqMode = %s, key = %s", tostring(seqMode), dir)
-        if not seqMode then
+        hs.printf("[DEBUG] seqMode = %s, key = %s", tostring(store.seqMode), dir)
+        if not store.seqMode then
             moveWindow(dir)
-            seqMode = true
+            store.seqMode = true
         else
             sizeAdjust(dir)
         end
@@ -228,22 +214,22 @@ bindHotkey(MOVE_MODS, PAD_DOT, function()
     local st = ensureWindowState(w)
     w:moveToUnit(st.originalUnit, 0)
     toast.showToast("Restore")
-    seqMode = false
+    store.seqMode = false
 end)
 
 bindHotkey(MOVE_MODS, PAD_ENTER, function()
     local w = activeWindow() if not w then return end
     w:moveToUnit({ x = 0, y = 0, w = 1, h = 1 }, 0)
     toast.showToast("Fullscreen")
-    seqMode = false
+    store.seqMode = false
 end)
 
 bindHotkey(MOVE_MODS, PAD_DIV, function()
     moveToDisplay(-1, "←")
-    seqMode = false
+    store.seqMode = false
 end)
 
 bindHotkey(MOVE_MODS, PAD_MUL, function()
     moveToDisplay(1, "→")
-    seqMode = false
+    store.seqMode = false
 end)
