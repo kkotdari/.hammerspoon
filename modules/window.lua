@@ -224,6 +224,25 @@ bindHotkey(MOVE_MODS, PAD_ENTER, function()
     store.seqMode = false
 end)
 
+-- Move across displays with clamp
+local function moveToDisplay(offset, sym)
+    local w = activeWindow() if not w then return end
+    local f = w:frame()
+    local sf = w:screen():frame()
+    local unit = toUnitRect(f, sf)
+    local scr = screen.allScreens()
+    local idx = fnutils.indexOf(scr, w:screen())
+    local tgt = scr[(idx - 1 + offset) % #scr + 1]
+    w:moveToScreen(tgt)
+    w:moveToUnit(unit, 0)
+    local f2 = w:frame()
+    local uf = tgt:frame()
+    w:setFrame(clampFrame(f2, uf), 0)
+    local st = ensureWindowState(w)
+    st.lastUnit = toUnitRect(w:frame(), uf)
+    toast.showToast(sym)
+end
+
 bindHotkey(MOVE_MODS, PAD_DIV, function()
     moveToDisplay(-1, "←")
     store.seqMode = false
