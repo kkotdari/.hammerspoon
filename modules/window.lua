@@ -82,9 +82,9 @@ end
 -- Bind a hotkey
 local function bindHotkey(mods, key, fn)
   local hk = hotkey.new(mods, key, function()
-    if not _G.pointingsOn then fn() end
+    if not store.pointingsOn then fn() end
   end)
-  table.insert(_G.allWindowHotkeys, hk)
+  table.insert(store.allWindowHotkeys, hk)
   hk:enable()
   return hk
 end
