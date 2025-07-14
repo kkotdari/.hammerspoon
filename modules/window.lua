@@ -58,7 +58,7 @@ local function ensureWindowState(win)
         windowStates[id] = {
             originalUnit = u,
             lastUnit     = u,
-            resizeIndex  = 1,
+            resizeIndex  = nil,
             lastDir      = "5",
         }
     end
@@ -73,10 +73,21 @@ local function bindHotkey(mods, key, fn)
 end
 
 -- resize presets
-local resizeStates = {
-    {1,1}, {1.5,1}, {2,1}, {3,1}, {2,2}, {3,2}
-}
-local ratioChars = {"× 1","× ⅔","× ½","× ⅓","× ¼","× ⅙"}
+local resizeStates = { {1,1},{1.5,1},{2,1},{3,1},{1,1.5},{1.5,1.5},{2,1.5},{3,1.5},{1,2},{1.5,2},{2,2},{3,2},{1,3},{1.5,3},{2,3},{3,3},{8,4} }
+local ratioChars   = { "1×1","⅔×1","½×1","⅓×1","1×⅔","⅔×⅔","½×⅔","⅓×⅔","1×½","⅔×½","½×½","⅓×½","1×⅓","⅔×⅓","½×⅓","⅓×⅓","⅛×¼" }
+
+-- Find closest resize index
+local function findClosestIndex(area, preferHigher)
+    local bestIdx, bestDiff
+    for i, ab in ipairs(resizeStates) do
+        local ar = 1/(ab[1]*ab[2])
+        local diff = math.abs(ar-area)
+        if not bestDiff or diff<bestDiff or (diff==bestDiff and ((preferHigher and i>bestIdx) or (not preferHigher and i<bestIdx))) then
+            bestDiff, bestIdx = diff, i
+        end
+    end
+    return bestIdx
+end
 
 local function getPositionByDir(dir, wf, hf)
     if dir=="1" then return 0,1-hf
@@ -92,54 +103,24 @@ local function getPositionByDir(dir, wf, hf)
     return (1-wf)/2,(1-hf)/2
 end
 
-local function findNearestIndex(wf, hf)
-    local area = wf*hf
-    local bestIdx, bestDiff
-    for i, ab in ipairs(resizeStates) do
-        local pw, ph = 1/ab[1], 1/ab[2]
-        local diff = math.abs(pw*ph - area)
-        if not bestDiff or diff<bestDiff then bestDiff,diff = diff,i bestIdx=i end
-    end
-    return bestIdx or 1
+-- Unified resize logic
+local function resizeWindow(isShrink)
+    local w = activeWindow() if not w then return end
+    local st = ensureWindowState(w)
+    local area = st.lastUnit.w * st.lastUnit.h
+    local baseIdx = st.resizeIndex or findClosestIndex(area, isShrink)
+    local newIdx  = isShrink and baseIdx+1 or baseIdx-1
+    if newIdx<1 or newIdx>#resizeStates then toast.showToast("Cannot change") return end
+    local ab = resizeStates[newIdx]
+    local wf, hf = 1/ab[1], 1/ab[2]
+    local x,y = getPositionByDir(st.lastDir, wf, hf)
+    local unit = { x=x, y=y, w=wf, h=hf }
+    applyAndClamp(w, unit)
+    toast.showToast(ratioChars[newIdx])
+    st.lastUnit, st.resizeIndex = unit, newIdx
 end
-
--- shrink
-bindHotkey(MODS, PAD_MINUS, function()
-    local w = activeWindow() if not w then return end
-    local st = ensureWindowState(w)
-    local cur = findNearestIndex(st.lastUnit.w, st.lastUnit.h)
-    if cur>=#resizeStates then
-        toast.showToast("더 줄일 수 없어요")
-        return
-    end
-    local next = cur+1
-    local a,b = table.unpack(resizeStates[next])
-    local wf, hf = 1/a, 1/b
-    local x,y = getPositionByDir(st.lastDir, wf, hf)
-    local unit = {x=x,y=y,w=wf,h=hf}
-    applyAndClamp(w, unit)
-    toast.showToast(ratioChars[next])
-    st.lastUnit, st.resizeIndex = unit, next
-end)
-
--- enlarge
-bindHotkey(MODS, PAD_PLUS, function()
-    local w = activeWindow() if not w then return end
-    local st = ensureWindowState(w)
-    local cur = findNearestIndex(st.lastUnit.w, st.lastUnit.h)
-    if cur<=1 then
-        toast.showToast("더 늘릴 수 없어요")
-        return
-    end
-    local next = cur-1
-    local a,b = table.unpack(resizeStates[next])
-    local wf,hf = 1/a,1/b
-    local x,y = getPositionByDir(st.lastDir, wf, hf)
-    local unit = {x=x,y=y,w=wf,h=hf}
-    applyAndClamp(w, unit)
-    toast.showToast(ratioChars[next])
-    st.lastUnit, st.resizeIndex = unit, next
-end)
+bindHotkey(MODS, PAD_MINUS, function() resizeWindow(true) end)
+bindHotkey(MODS, PAD_PLUS,  function() resizeWindow(false) end)
 
 -- center
 bindHotkey(MODS, PAD5, function()
