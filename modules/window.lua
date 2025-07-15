@@ -14,10 +14,9 @@ local PAD_DIV, PAD_MUL = 75, 67
 local PAD_DOT = 65
 local PAD_ENTER = 76
 
-local MODS = {"cmd", "ctrl"}
-local clampFrame
-local applyAndClamp
+local MODS = { "cmd", "ctrl" }
 local windowStates = {}
+local ignoreWatcher = false
 
 local function toUnitRect(f, sf)
   return {
@@ -28,17 +27,19 @@ local function toUnitRect(f, sf)
   }
 end
 
-clampFrame = function(f, uf)
+local function clampFrame(f, uf)
   f.x = math.max(uf.x, math.min(f.x, uf.x + uf.w - f.w))
   f.y = math.max(uf.y, math.min(f.y, uf.y + uf.h - f.h))
   return f
 end
 
-applyAndClamp = function(win, unit)
+local function applyAndClamp(win, unit)
+  ignoreWatcher = true
   win:moveToUnit(unit, 0)
   local f2 = win:frame()
   local uf = win:screen():frame()
   win:setFrame(clampFrame(f2, uf), 0)
+  hs.timer.doAfter(1, function() ignoreWatcher = false end)
 end
 
 local function activeWindow()
@@ -46,17 +47,18 @@ local function activeWindow()
 end
 
 local resizeStates = {
-  {1,1},{1.5,1},{2,1},{3,1},
-  {1,1.5},{1.5,1.5},{2,1.5},{3,1.5},
-  {1,2},{1.5,2},{2,2},{3,2},
-  {1,3},{1.5,3},{2,3},{3,3},
-  {8,4}
+  { 1, 1 }, { 1.5, 1 }, { 2, 1 }, { 3, 1 },
+  { 1, 1.5 }, { 1.5, 1.5 }, { 2, 1.5 }, { 3, 1.5 },
+  { 1, 2 }, { 1.5, 2 }, { 2, 2 }, { 3, 2 },
+  { 1, 3 }, { 1.5, 3 }, { 2, 3 }, { 3, 3 },
+  { 8, 4 }
 }
+
 local ratioChars = {
-  "1×1","⅔×1","½×1","⅓×1",
-  "1×⅔","⅔×⅔","½×⅔","⅓×⅔",
-  "1×½","⅔×½","½×½","⅓×½",
-  "1×⅓","⅔×⅓","½×⅓","⅓×⅓",
+  "1×1", "⅔×1", "½×1", "⅓×1",
+  "1×⅔", "⅔×⅔", "½×⅔", "⅓×⅔",
+  "1×½", "⅔×½", "½×½", "⅓×½",
+  "1×⅓", "⅔×⅓", "½×⅓", "⅓×⅓",
   "⅛×¼"
 }
 
@@ -69,56 +71,46 @@ local function ensureWindowState(win)
     local sf = win:screen():frame()
     local u = toUnitRect(f, sf)
 
-    hs.printf("▶ WINDOW FRAME: x=%d, y=%d, w=%d, h=%d", f.x, f.y, f.w, f.h)
-    hs.printf("▶ SCREEN FRAME: x=%d, y=%d, w=%d, h=%d", sf.x, sf.y, sf.w, sf.h)
-
-    local t = math.abs(f.y - sf.y) < EPS
-    local b = math.abs(f.y + f.h - (sf.y + sf.h)) <= 1
+    local t = math.abs(f.y + f.h - (sf.y + sf.h)) < EPS
+    local b = math.abs(f.y - sf.y) <= 1
     local l = math.abs(f.x - sf.x) < EPS
     local r = math.abs(f.x + f.w - (sf.x + sf.w)) < EPS
 
-    if t and not b and l and not r then lastDir="7"
-    elseif t and not b and not l and r then lastDir="9"
-    elseif not t and b and l and not r then lastDir="1"
-    elseif not t and b and not l and r then lastDir="3"
-    elseif t and not b and not l and not r then lastDir="8"
-    elseif not t and b and not l and not r then lastDir="2"
-    elseif not t and not b and l and not r then lastDir="4"
-    elseif not t and not b and not l and r then lastDir="6"
-    else lastDir="5"
-    end
+    local lastDir
+    if t and not b and l and not r then lastDir = "7"
+    elseif t and not b and not l and r then lastDir = "9"
+    elseif not t and b and l and not r then lastDir = "1"
+    elseif not t and b and not l and r then lastDir = "3"
+    elseif t and not b and not l and not r then lastDir = "8"
+    elseif not t and b and not l and not r then lastDir = "2"
+    elseif not t and not b and l and not r then lastDir = "4"
+    elseif not t and not b and not l and r then lastDir = "6"
+    else lastDir = "5" end
 
     local bestA, bestADiff = resizeStates[1][1], math.huge
     for _, ab in ipairs(resizeStates) do
       local targetW = 1 / ab[1]
       local diff = math.abs(u.w - targetW)
-      if diff < bestADiff then
-        bestADiff, bestA = diff, ab[1]
-      end
+      if diff < bestADiff then bestADiff, bestA = diff, ab[1] end
     end
 
     local bestB, bestBDiff = resizeStates[1][2], math.huge
     for _, ab in ipairs(resizeStates) do
       local targetH = 1 / ab[2]
       local diff = math.abs(u.h - targetH)
-      if diff < bestBDiff then
-        bestBDiff, bestB = diff, ab[2]
-      end
+      if diff < bestBDiff then bestBDiff, bestB = diff, ab[2] end
     end
 
     local matchedIdx = 1
     for i, ab in ipairs(resizeStates) do
-      if ab[1] == bestA and ab[2] == bestB then
-        matchedIdx = i
-        break
-      end
+      if ab[1] == bestA and ab[2] == bestB then matchedIdx = i break end
     end
 
     windowStates[id] = {
       originalUnit = u,
       lastUnit = u,
       resizeIndex = matchedIdx,
-      lastDir = lastDir,
+      lastDir = lastDir
     }
   end
   return windowStates[id]
@@ -144,27 +136,34 @@ local function getPositionByDir(dir, wf, hf)
   return (1 - wf) / 2, (1 - hf) / 2
 end
 
-local function resizeWindow(isShrink)
+local dirArrows = {
+  ["1"] = "↙", ["2"] = "↓", ["3"] = "↘",
+  ["4"] = "←", ["6"] = "→", ["7"] = "↖",
+  ["8"] = "↑", ["9"] = "↗"
+}
+
+local function moveWindow(dir)
   local w = activeWindow()
   if not w then return end
   local st = ensureWindowState(w)
-  local baseIdx = st.resizeIndex or 1
-  local newIdx = isShrink and (baseIdx + 1) or (baseIdx - 1)
-  if newIdx < 1 or newIdx > #resizeStates then
-    toast.showToast("Cannot change")
-    return
-  end
-  local ab = resizeStates[newIdx]
-  local wf, hf = 1 / ab[1], 1 / ab[2]
-  local x, y = getPositionByDir(st.lastDir, wf, hf)
+  st.lastDir = dir
+  local u = st.lastUnit
+  local wf, hf = u.w, u.h
+  local x, y = getPositionByDir(dir, wf, hf)
   local unit = { x = x, y = y, w = wf, h = hf }
   applyAndClamp(w, unit)
-  toast.showToast(ratioChars[newIdx])
-  st.lastUnit, st.resizeIndex = unit, newIdx
+  toast.showToast(dirArrows[dir])
+  st.lastUnit = unit
 end
 
-bindHotkey(MODS, PAD_MINUS, function() resizeWindow(true) end)
-bindHotkey(MODS, PAD_PLUS, function() resizeWindow(false) end)
+bindHotkey(MODS, PAD1, function() moveWindow("1") end)
+bindHotkey(MODS, PAD2, function() moveWindow("2") end)
+bindHotkey(MODS, PAD3, function() moveWindow("3") end)
+bindHotkey(MODS, PAD4, function() moveWindow("4") end)
+bindHotkey(MODS, PAD6, function() moveWindow("6") end)
+bindHotkey(MODS, PAD7, function() moveWindow("7") end)
+bindHotkey(MODS, PAD8, function() moveWindow("8") end)
+bindHotkey(MODS, PAD9, function() moveWindow("9") end)
 
 bindHotkey(MODS, PAD5, function()
   local w = activeWindow()
@@ -176,6 +175,25 @@ bindHotkey(MODS, PAD5, function()
   toast.showToast("가운데로")
   st.lastUnit, st.lastDir = unit, "5"
 end)
+
+local function resizeWindow(isShrink)
+  local w = activeWindow()
+  if not w then return end
+  local st = ensureWindowState(w)
+  local baseIdx = st.resizeIndex or 1
+  local newIdx = isShrink and (baseIdx + 1) or (baseIdx - 1)
+  if newIdx < 1 or newIdx > #resizeStates then toast.showToast("Cannot change") return end
+  local ab = resizeStates[newIdx]
+  local wf, hf = 1 / ab[1], 1 / ab[2]
+  local x, y = getPositionByDir(st.lastDir, wf, hf)
+  local unit = { x = x, y = y, w = wf, h = hf }
+  applyAndClamp(w, unit)
+  toast.showToast(ratioChars[newIdx])
+  st.lastUnit, st.resizeIndex = unit, newIdx
+end
+
+bindHotkey(MODS, PAD_MINUS, function() resizeWindow(true) end)
+bindHotkey(MODS, PAD_PLUS, function() resizeWindow(false) end)
 
 bindHotkey(MODS, PAD_DOT, function()
   local w = activeWindow()
@@ -224,30 +242,16 @@ bindHotkey(MODS, PAD_MUL, function()
   st.lastUnit = unit
 end)
 
-local dirArrows = { ["1"] = "↙", ["2"] = "↓", ["3"] = "↘", ["4"] = "←", ["6"] = "→", ["7"] = "↖", ["8"] = "↑", ["9"] = "↗" }
-for dir, key in pairs({ ["1"] = PAD1, ["2"] = PAD2, ["3"] = PAD3, ["4"] = PAD4, ["6"] = PAD6, ["7"] = PAD7, ["8"] = PAD8, ["9"] = PAD9 }) do
-  bindHotkey(MODS, key, function()
-    local w = activeWindow()
-    if not w then return end
-    local st = ensureWindowState(w)
-    st.lastDir = dir
-    local u = st.lastUnit
-    local wf, hf = u.w, u.h
-    local x, y = getPositionByDir(dir, wf, hf)
-    local unit = { x = x, y = y, w = wf, h = hf }
-    applyAndClamp(w, unit)
-    toast.showToast(dirArrows[dir])
-    st.lastUnit = unit
-  end)
-end
-
-
-local moveWatcher = wfilter.new():subscribe(
-    { wfilter.windowMoved, wfilter.windowResized },
-    function(win)
-        local id = win:id()
-        if windowStates[id] then
-            windowStates[id].lastDir = "5"
-        end
-    end
+wfilter.new():subscribe(
+  { wfilter.windowMoved, wfilter.windowResized },
+  function(win)
+    if ignoreWatcher then return end
+    local id = win:id()
+    local st = windowStates[id]
+    if not st then return end
+    st.lastDir = "5"
+    local f, sf = win:frame(), win:screen():frame()
+    st.originalUnit = toUnitRect(f, sf)
+    st.lastUnit = toUnitRect(f, sf)
+  end
 )
