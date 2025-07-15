@@ -50,16 +50,59 @@ local function activeWindow()
     return window.focusedWindow() or window.frontmostWindow()
 end
 
+-- resize presets
+local resizeStates = { {1,1},{1.5,1},{2,1},{3,1},{1,1.5},{1.5,1.5},{2,1.5},{3,1.5},{1,2},{1.5,2},{2,2},{3,2},{1,3},{1.5,3},{2,3},{3,3},{8,4} }
+local ratioChars   = { "1×1","⅔×1","½×1","⅓×1","1×⅔","⅔×⅔","½×⅔","⅓×⅔","1×½","⅔×½","½×½","⅓×½","1×⅓","⅔×⅓","½×⅓","⅓×⅓","⅛×¼" }
+
+local EPS = 1e-6
+
 local function ensureWindowState(win)
     local id = win:id()
     if not windowStates[id] then
         local f, sf = win:frame(), win:screen():frame()
+        -- unit rect
         local u = toUnitRect(f, sf)
+
+        -- 1) edge-touch detection for lastDir
+        local top    = math.abs(f.y - sf.y) < EPS
+        local bottom = math.abs((f.y + f.h) - (sf.y + sf.h)) < EPS
+        local left   = math.abs(f.x - sf.x) < EPS
+        local right  = math.abs((f.x + f.w) - (sf.x + sf.w)) < EPS
+
+        local lastDir
+        if     top   and left  then lastDir = "7"
+        elseif top   and not(left or right) then lastDir = "8"
+        elseif top   and right then lastDir = "9"
+        elseif bottom and left  then lastDir = "1"
+        elseif bottom and not(left or right) then lastDir = "2"
+        elseif bottom and right then lastDir = "3"
+        elseif not(top or bottom) and left  then lastDir = "4"
+        elseif not(top or bottom) and right then lastDir = "6"
+        else  lastDir = "5" end
+
+        -- 2) ratio-based detection for resizeIndex
+        local bestIdx, bestDiff = 1, math.huge
+        for i, ab in ipairs(resizeStates) do
+            local a, b = ab[1], ab[2]
+            local targetW, targetH = 1/a, 1/b
+            local diff = math.abs(u.w - targetW) + math.abs(u.h - targetH)
+            if diff < bestDiff then
+                bestDiff, bestIdx = diff, i
+            end
+        end
+
+        -- 만약 너무 차이가 크면(프리셋과 맞지 않으면) 센터로 초기화
+        if bestDiff > 0.01 then
+            u.x = 0.5 - u.w/2
+            u.y = 0.5 - u.h/2
+            bestIdx = 1
+        end
+
         windowStates[id] = {
             originalUnit = u,
             lastUnit     = u,
-            resizeIndex  = nil,
-            lastDir      = "5",
+            resizeIndex  = bestIdx,
+            lastDir      = lastDir,
         }
     end
     return windowStates[id]
@@ -71,10 +114,6 @@ local function bindHotkey(mods, key, fn)
     hk:enable()
     return hk
 end
-
--- resize presets
-local resizeStates = { {1,1},{1.5,1},{2,1},{3,1},{1,1.5},{1.5,1.5},{2,1.5},{3,1.5},{1,2},{1.5,2},{2,2},{3,2},{1,3},{1.5,3},{2,3},{3,3},{8,4} }
-local ratioChars   = { "1×1","⅔×1","½×1","⅓×1","1×⅔","⅔×⅔","½×⅔","⅓×⅔","1×½","⅔×½","½×½","⅓×½","1×⅓","⅔×⅓","½×⅓","⅓×⅓","⅛×¼" }
 
 -- Find closest resize index
 local function findClosestIndex(area, preferHigher)
@@ -103,22 +142,27 @@ local function getPositionByDir(dir, wf, hf)
     return (1-wf)/2,(1-hf)/2
 end
 
--- Unified resize logic
+-- Unified resize logic (no more findClosestIndex)
 local function resizeWindow(isShrink)
     local w = activeWindow() if not w then return end
     local st = ensureWindowState(w)
-    local area = st.lastUnit.w * st.lastUnit.h
-    local baseIdx = st.resizeIndex or findClosestIndex(area, isShrink)
-    local newIdx  = isShrink and baseIdx+1 or baseIdx-1
-    if newIdx<1 or newIdx>#resizeStates then toast.showToast("Cannot change") return end
+    local baseIdx = st.resizeIndex or 1
+    local newIdx  = isShrink and (baseIdx + 1) or (baseIdx - 1)
+    if newIdx < 1 or newIdx > #resizeStates then
+        toast.showToast("Cannot change")
+        return
+    end
     local ab = resizeStates[newIdx]
     local wf, hf = 1/ab[1], 1/ab[2]
-    local x,y = getPositionByDir(st.lastDir, wf, hf)
-    local unit = { x=x, y=y, w=wf, h=hf }
+    local x, y   = getPositionByDir(st.lastDir, wf, hf)
+    local unit   = { x = x, y = y, w = wf, h = hf }
     applyAndClamp(w, unit)
     toast.showToast(ratioChars[newIdx])
     st.lastUnit, st.resizeIndex = unit, newIdx
 end
+
+bindHotkey(MODS, PAD_MINUS, function() resizeWindow(true)  end)
+bindHotkey(MODS, PAD_PLUS,  function() resizeWindow(false) end)
 bindHotkey(MODS, PAD_MINUS, function() resizeWindow(true) end)
 bindHotkey(MODS, PAD_PLUS,  function() resizeWindow(false) end)
 
