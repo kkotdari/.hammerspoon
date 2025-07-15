@@ -3,12 +3,13 @@
 --------------------------------------------------------------------
 local version = "0.4.0"
 
-store = require("/configs/store") -- manage global shared state
-toast = require("/utils/toast") -- alert helper (toast notifications)
+store = require("/configs/store")
+toast = require("/utils/toast")
 
-require("/interceptors/keyHandler") -- fix NumPad modifier flags (if needed) and log key events
-require("/modules/window") -- window management hotkeys
-require("/modules/point") -- pointing‐device functionality
+require("/interceptors/keyHandler")
+require("/modules/desktop")
+require("/modules/window")
+require("/modules/point")
 
 print("running version: ", version)
 toast.showToast("You are using Hammerspoon toolkits version " .. version, 3)
