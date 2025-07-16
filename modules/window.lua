@@ -13,10 +13,12 @@ local PAD7, PAD8, PAD9 = 89, 91, 92
 local PAD_DIV, PAD_MUL = 75, 67
 local PAD_DOT = 65
 local PAD_ENTER = 76
+local PAD0 = 82
 
 local MODS = { "cmd", "ctrl" }
 local windowStates = {}
 local ignoreWatcher = false
+local DoingFunctionCnt = 0
 
 local function toUnitRect(f, sf)
   return {
@@ -34,12 +36,16 @@ local function clampFrame(f, uf)
 end
 
 local function applyAndClamp(win, unit)
+  DoingFunctionCnt = DoingFunctionCnt + 1
   ignoreWatcher = true
   win:moveToUnit(unit, 0)
   local f2 = win:frame()
   local uf = win:screen():frame()
   win:setFrame(clampFrame(f2, uf), 0)
-  hs.timer.doAfter(1, function() ignoreWatcher = false end)
+  hs.timer.doAfter(1, function() 
+      if DoingFunctionCnt == 1 then ignoreWatcher = false end
+    end)
+  DoingFunctionCnt = DoingFunctionCnt - 1   
 end
 
 local function activeWindow()
@@ -64,55 +70,85 @@ local ratioChars = {
 
 local EPS = 1e-6
 
+local function getResizeIndex(win)
+  local f = win:frame()
+  local sf = win:screen():frame()
+  local u = toUnitRect(f, sf)
+
+  local bestA, bestADiff = resizeStates[1][1], math.huge
+  for _, ab in ipairs(resizeStates) do
+    local targetW = 1 / ab[1]
+    local diff = math.abs(u.w - targetW)
+    if diff < bestADiff then bestADiff, bestA = diff, ab[1] end
+  end
+
+  local bestB, bestBDiff = resizeStates[1][2], math.huge
+  for _, ab in ipairs(resizeStates) do
+    local targetH = 1 / ab[2]
+    local diff = math.abs(u.h - targetH)
+    if diff < bestBDiff then bestBDiff, bestB = diff, ab[2] end
+  end
+
+  local matchedIdx = 1
+  for i, ab in ipairs(resizeStates) do
+    if ab[1] == bestA and ab[2] == bestB then matchedIdx = i break end
+  end
+
+  return matchedIdx
+end
+
+local function getLastDir(win)
+  local f = win:frame()
+  local sf = win:screen():frame()
+  
+  print("getLastDir > win > x/y/w/h: " .. f.x .. "/" .. f.y .. "/" .. f.w .. "/" .. f.h)
+  print("getLastDir > screen > x/y/w/h: " .. sf.x .. "/" .. sf.y .. "/" .. sf.w .. "/" .. sf.h)
+
+  local t = math.abs(f.y - sf.y) < EPS
+  local b = math.abs(f.y + f.h - (sf.y + sf.h)) <= 1
+  local l = math.abs(f.x - sf.x) < EPS
+  local r = math.abs(f.x + f.w - (sf.x + sf.w)) < EPS
+  
+  local lastDir
+  if t and not b and l and not r then lastDir = "7"
+  elseif t and not b and not l and r then lastDir = "9"
+  elseif not t and b and l and not r then lastDir = "1"
+  elseif not t and b and not l and r then lastDir = "3"
+  elseif t and not b and not l and not r then lastDir = "8"
+  elseif not t and b and not l and not r then lastDir = "2"
+  elseif not t and not b and l and not r then lastDir = "4"
+  elseif not t and not b and not l and r then lastDir = "6"
+  else lastDir = "5" end
+  
+  print("getLastDir > t/b/l/r: " .. tostring(t) .. "/" .. tostring(b) .. "/" .. tostring(l) .. "/" .. tostring(r))
+  print("getLastDir > lastDir: " .. lastDir)
+  return lastDir
+end
+
 local function ensureWindowState(win)
   local id = win:id()
-  if not windowStates[id] then
-    local f = win:frame()
-    local sf = win:screen():frame()
-    local u = toUnitRect(f, sf)
-
-    local t = math.abs(f.y + f.h - (sf.y + sf.h)) < EPS
-    local b = math.abs(f.y - sf.y) <= 1
-    local l = math.abs(f.x - sf.x) < EPS
-    local r = math.abs(f.x + f.w - (sf.x + sf.w)) < EPS
-
-    local lastDir
-    if t and not b and l and not r then lastDir = "7"
-    elseif t and not b and not l and r then lastDir = "9"
-    elseif not t and b and l and not r then lastDir = "1"
-    elseif not t and b and not l and r then lastDir = "3"
-    elseif t and not b and not l and not r then lastDir = "8"
-    elseif not t and b and not l and not r then lastDir = "2"
-    elseif not t and not b and l and not r then lastDir = "4"
-    elseif not t and not b and not l and r then lastDir = "6"
-    else lastDir = "5" end
-
-    local bestA, bestADiff = resizeStates[1][1], math.huge
-    for _, ab in ipairs(resizeStates) do
-      local targetW = 1 / ab[1]
-      local diff = math.abs(u.w - targetW)
-      if diff < bestADiff then bestADiff, bestA = diff, ab[1] end
-    end
-
-    local bestB, bestBDiff = resizeStates[1][2], math.huge
-    for _, ab in ipairs(resizeStates) do
-      local targetH = 1 / ab[2]
-      local diff = math.abs(u.h - targetH)
-      if diff < bestBDiff then bestBDiff, bestB = diff, ab[2] end
-    end
-
-    local matchedIdx = 1
-    for i, ab in ipairs(resizeStates) do
-      if ab[1] == bestA and ab[2] == bestB then matchedIdx = i break end
-    end
-
+  
+  local ensuredWindowState
+  if not windowStates[id]
+  then
     windowStates[id] = {
-      originalUnit = u,
-      lastUnit = u,
-      resizeIndex = matchedIdx,
-      lastDir = lastDir
+      originalUnit = nil,
+      lastUnit = nil,
+      resizeIndex = nil,
+      lastDir = nil
     }
   end
+  
+  local f = win:frame()
+  print("ensureWindowState > win >  x/y/w/h: " .. f.x .. "/" .. f.y .. "/" .. f.w .. "/" .. f.h)
+  local sf = win:screen():frame()
+  local u = toUnitRect(f, sf)
+
+  if not windowStates[id].originalUnit then windowStates[id].originalUnit = u end
+  if not windowStates[id].lastUnit then windowStates[id].lastUnit = u end
+  if not windowStates[id].resizeIndex then windowStates[id].resizeIndex = getResizeIndex(win) end
+  if not windowStates[id].lastDir then windowStates[id].lastDir = getLastDir(win) end
+
   return windowStates[id]
 end
 
@@ -182,7 +218,9 @@ local function resizeWindow(isShrink)
   local st = ensureWindowState(w)
   local baseIdx = st.resizeIndex or 1
   local newIdx = isShrink and (baseIdx + 1) or (baseIdx - 1)
-  if newIdx < 1 or newIdx > #resizeStates then toast.showToast("Cannot change") return end
+  if newIdx < 1 or newIdx > #resizeStates
+  then toast.showToast(isShrink and "더이상 줄일 수 없어요" or "더이상 늘릴 수 없어요") return
+  end
   local ab = resizeStates[newIdx]
   local wf, hf = 1 / ab[1], 1 / ab[2]
   local x, y = getPositionByDir(st.lastDir, wf, hf)
@@ -240,6 +278,143 @@ bindHotkey(MODS, PAD_MUL, function()
   applyAndClamp(w, unit)
   toast.showToast("→")
   st.lastUnit = unit
+end)
+
+-- 맨 위에 추가
+local resizeView
+
+hs.urlevent.bind("resize", function(_, params)
+  local w = activeWindow()
+  if not w then return end
+  local st = ensureWindowState(w)
+  local sf = w:screen():frame()
+  local w_px = tonumber(params.width)
+  local h_px = tonumber(params.height)
+  if w_px and h_px then
+    local wf, hf = w_px / sf.w, h_px / sf.h
+    local x, y   = getPositionByDir(st.lastDir, wf, hf)
+    applyAndClamp(w, { x = x, y = y, w = wf, h = hf })
+    st.lastUnit   = { x = x, y = y, w = wf, h = hf }
+    st.resizeIndex = nil
+  end
+  resizeView:delete()
+  resizeView = nil
+end)
+
+hs.urlevent.bind("close", function()
+  if resizeView then
+    resizeView:delete()
+    resizeView = nil
+  end
+end)
+
+bindHotkey(MODS, PAD0, function()
+  local w = activeWindow()
+  if not w then return end
+  local st = ensureWindowState(w)
+  local f  = w:frame()
+  local sf = w:screen():frame()
+
+local html = [[
+<html>
+<head>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<style>
+  html,body {
+    padding:0;
+    margin:0;
+    background:(255,255,255,0);
+  }
+  body {
+    width:100%;
+    height:100%;
+    box-sizing:border-box;
+    background:rgba(255,255,255,0.85);
+    font-family:-apple-system,sans-serif;
+    font-size:14px;
+    color:#333;
+    border:1px solid #ccc;
+    border-radius:8px;
+    padding: 12px;
+    display:flex;
+    flex-direction:column;
+    justify-content:space-between;
+    align-items:center;
+    overflow:hidden;
+  }
+  .input-row {  
+    flex:initial;
+    display:flex;
+    gap:8px;
+    justify-content:center;
+    align-items:center;
+  }
+  .input-row > label {
+    width:40%
+    color:#333;
+    font-size:14px;
+    font-weight:500;
+  }
+  .input-row > input {
+    width:60%;
+    padding:4px;
+    font-size:12px;
+    border:1px solid #ccc;
+    border-radius:4px;
+    box-sizing:border-box;
+  }
+  button {
+    width:auto;
+    height:auto;
+    padding:6px 12px 6px 12px;
+    margin-top:2px;
+    border:none;
+    border-radius:8px;
+    background:#007aff;
+    color:#fff;
+    font-size:14px;
+    font-weight:600;
+    cursor:pointer;
+    flex:initial;
+  }
+  button:active { background:#0051a8 }
+</style>
+</head>
+<body>
+  <div class="input-row"><label>가로</label><input id="w" type="number" value="]]..f.w..[[" /></div>
+  <div class="input-row"><label>세로</label><input id="h" type="number" value="]]..f.h..[[" /></div>
+  <div class="input-row">
+    <button id="btn-submit">확인</button>
+    <button id="btn-cancel">취소</button>
+  </div>
+  <script>
+    function apply(){
+      var wi = document.getElementById('w').value;
+      var hi = document.getElementById('h').value;
+      window.location = 'hammerspoon://resize?width=' + wi + '&height=' + hi;
+    }
+    document.getElementById('btn-submit').addEventListener('click', apply);
+    document.getElementById('btn-cancel').addEventListener('click', window.location = 'hammerspoon://close');
+    document.addEventListener('keydown', function(e){
+      if (e.key === 'Enter') apply();
+      else if (e.key === 'Escape') window.location = 'hammerspoon://close';
+    });
+  </script>
+</body>
+</html>
+]]
+
+  resizeView = hs.webview.new({
+      x = sf.x + sf.w/2 - 90,
+      y = sf.y + sf.h/2 - 60,
+      w = 180,
+      h = 120
+    })
+    :windowStyle("utility")
+    :allowTextEntry(true)
+    :transparent(true)
+    :html(html)
+    :show()
 end)
 
 wfilter.new():subscribe(
