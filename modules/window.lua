@@ -19,6 +19,7 @@ local MODS = { "cmd", "ctrl" }
 local windowStates = {}
 local ignoreWatcher = false
 local DoingFunctionCnt = 0
+local resizeView = nil
 
 local function toUnitRect(f, sf)
   return {
@@ -280,9 +281,6 @@ bindHotkey(MODS, PAD_MUL, function()
   st.lastUnit = unit
 end)
 
--- 맨 위에 추가
-local resizeView
-
 hs.urlevent.bind("resize", function(_, params)
   local w = activeWindow()
   if not w then return end
@@ -323,19 +321,18 @@ local html = [[
   html,body {
     padding:0;
     margin:0;
-    background:(255,255,255,0);
   }
   body {
     width:100%;
     height:100%;
     box-sizing:border-box;
-    background:rgba(255,255,255,0.85);
+    background-color:rgba(255,255,255,1);
     font-family:-apple-system,sans-serif;
     font-size:14px;
     color:#333;
     border:1px solid #ccc;
     border-radius:8px;
-    padding: 12px;
+    padding: 12px 24px 12px 24px;
     display:flex;
     flex-direction:column;
     justify-content:space-between;
@@ -344,38 +341,46 @@ local html = [[
   }
   .input-row {  
     flex:initial;
+    width:100%;
     display:flex;
-    gap:8px;
-    justify-content:center;
+    justify-content:space-between;
     align-items:center;
   }
-  .input-row > label {
-    width:40%
+  .input-row label {
+    width:25%;
     color:#333;
     font-size:14px;
     font-weight:500;
   }
-  .input-row > input {
-    width:60%;
+  .input-row input {
+    width:75%;
     padding:4px;
     font-size:12px;
-    border:1px solid #ccc;
+    text-align:right;
+    border:1px solid #cccccc;
     border-radius:4px;
     box-sizing:border-box;
   }
-  button {
-    width:auto;
+  .button-row {  
+    flex:initial;
+    width:100%;
+    display:flex;
+    gap:8px;
+    margin-top:4px;
+    margin-bottom:4px;
+    align-items:center;
+  }
+  .button-row button {
+    flex-grow:1;
     height:auto;
-    padding:6px 12px 6px 12px;
-    margin-top:2px;
+    padding:4px 0px 4px 0px;
     border:none;
-    border-radius:8px;
+    border-radius:4px;
     background:#007aff;
-    color:#fff;
+    color:#ffffff;
     font-size:14px;
     font-weight:600;
-    cursor:pointer;
-    flex:initial;
+    cursor:hand;
   }
   button:active { background:#0051a8 }
 </style>
@@ -383,7 +388,7 @@ local html = [[
 <body>
   <div class="input-row"><label>가로</label><input id="w" type="number" value="]]..f.w..[[" /></div>
   <div class="input-row"><label>세로</label><input id="h" type="number" value="]]..f.h..[[" /></div>
-  <div class="input-row">
+  <div class="button-row">
     <button id="btn-submit">확인</button>
     <button id="btn-cancel">취소</button>
   </div>
@@ -394,7 +399,9 @@ local html = [[
       window.location = 'hammerspoon://resize?width=' + wi + '&height=' + hi;
     }
     document.getElementById('btn-submit').addEventListener('click', apply);
-    document.getElementById('btn-cancel').addEventListener('click', window.location = 'hammerspoon://close');
+    document.getElementById('btn-cancel').addEventListener('click', function(){
+      window.location = 'hammerspoon://close';
+    });
     document.addEventListener('keydown', function(e){
       if (e.key === 'Enter') apply();
       else if (e.key === 'Escape') window.location = 'hammerspoon://close';
@@ -403,6 +410,11 @@ local html = [[
 </body>
 </html>
 ]]
+
+  if resizeView then
+    resizeView:delete()
+    resizeView = nil
+  end
 
   resizeView = hs.webview.new({
       x = sf.x + sf.w/2 - 90,
@@ -414,7 +426,9 @@ local html = [[
     :allowTextEntry(true)
     :transparent(true)
     :html(html)
-    :show()
+
+  resizeView:show()
+  resizeView:bringToFront()
 end)
 
 wfilter.new():subscribe(
