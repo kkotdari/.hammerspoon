@@ -54,18 +54,18 @@ local function activeWindow()
 end
 
 local resizeStates = {
-  { 1, 1 }, { 1.5, 1 }, { 2, 1 }, { 3, 1 },
-  { 1, 1.5 }, { 1.5, 1.5 }, { 2, 1.5 }, { 3, 1.5 },
-  { 1, 2 }, { 1.5, 2 }, { 2, 2 }, { 3, 2 },
-  { 1, 3 }, { 1.5, 3 }, { 2, 3 }, { 3, 3 },
+  { 1, 1 }, { 1.5, 1 }, { 2, 1 }, { 3, 1 }, { 4, 1 },
+  { 1, 1.5 }, { 1.5, 1.5 }, { 2, 1.5 }, { 3, 1.5 }, { 4, 1.5 },
+  { 1, 2 }, { 1.5, 2 }, { 2, 2 }, { 3, 2 }, { 4, 2 },
+  { 1, 3 }, { 1.5, 3 }, { 2, 3 }, { 3, 3 }, { 4, 3 },
   { 8, 4 }
 }
 
 local ratioChars = {
-  "1×1", "⅔×1", "½×1", "⅓×1",
-  "1×⅔", "⅔×⅔", "½×⅔", "⅓×⅔",
-  "1×½", "⅔×½", "½×½", "⅓×½",
-  "1×⅓", "⅔×⅓", "½×⅓", "⅓×⅓",
+  "1×1", "⅔×1", "½×1", "⅓×1", "¼×1",
+  "1×⅔", "⅔×⅔", "½×⅔", "⅓×⅔", "¼×⅔",
+  "1×½", "⅔×½", "½×½", "⅓×½", "¼×½",
+  "1×⅓", "⅔×⅓", "½×⅓", "⅓×⅓", "¼×⅓",
   "⅛×¼"
 }
 
@@ -126,6 +126,22 @@ local function getLastDir(win)
   return lastDir
 end
 
+local function getColIndex(win)
+  local EPS = 1e-6
+  local f  = win:frame()
+  local sf = win:screen():frame()
+  local u  = toUnitRect(f, sf)
+  local cx = u.x + u.w/2
+
+  if math.abs(cx - 0.5) < EPS then
+    return 1
+  elseif cx < 0.5 then
+    return 2
+  else
+    return 3
+  end
+end
+
 local function ensureWindowState(win)
   local id = win:id()
   
@@ -136,7 +152,8 @@ local function ensureWindowState(win)
       originalUnit = nil,
       lastUnit = nil,
       resizeIndex = nil,
-      lastDir = nil
+      lastDir = nil,
+      colIndex = nil,
     }
   end
   
@@ -149,6 +166,14 @@ local function ensureWindowState(win)
   if not windowStates[id].lastUnit then windowStates[id].lastUnit = u end
   if not windowStates[id].resizeIndex then windowStates[id].resizeIndex = getResizeIndex(win) end
   if not windowStates[id].lastDir then windowStates[id].lastDir = getLastDir(win) end
+  
+  if (windowStates[id].lastDir == "2"
+      or windowStates[id].lastDir == "5"
+      or windowStates[id].lastDir == "8") 
+    and not windowStates[id].colIndex then
+    windowStates[id].colIndex = getColIndex(win)
+    print("window > colIndex: " .. windowStates[id].colIndex)
+  end
 
   return windowStates[id]
 end
@@ -162,10 +187,8 @@ end
 
 local function getPositionByDir(dir, wf, hf)
   if dir == "1" then return 0, 1 - hf end
-  if dir == "2" then return (1 - wf) / 2, 1 - hf end
   if dir == "3" then return 1 - wf, 1 - hf end
   if dir == "4" then return 0, (1 - hf) / 2 end
-  if dir == "5" then return (1 - wf) / 2, (1 - hf) / 2 end
   if dir == "6" then return 1 - wf, (1 - hf) / 2 end
   if dir == "7" then return 0, 0 end
   if dir == "8" then return (1 - wf) / 2, 0 end
@@ -183,7 +206,45 @@ local function moveWindow(dir)
   local w = activeWindow()
   if not w then return end
   local st = ensureWindowState(w)
+  if not st.lastDir == dir then st.colIndex = nil end
+
   st.lastDir = dir
+  
+  if st.lastDir == "2" or st.lastDir == "5" or st.lastDir == "8" then
+    st.colIndex = st.colIndex == nil and 1 or ((st.colIndex % 3) + 1)
+
+    print("window > lastDir: " .. st.lastDir .. ", colIndex: " .. st.colIndex)
+    
+    local wf, hf = st.lastUnit.w, st.lastUnit.h
+    
+    local rawX
+    if st.colIndex == 1 then
+      rawX = 0.5 - wf/2
+    elseif st.colIndex == 2 then
+      rawX = 0.5 - wf
+    else
+      rawX = 0.5
+    end
+    
+    local rawY
+    if dir == "2" then
+      rawY = 1 - hf
+    elseif dir == "8" then
+      rawY = 0
+    else
+      rawY = (1 - hf) / 2
+    end
+    
+    local x = math.max(0, math.min(rawX, 1 - wf))
+    local y = math.max(0, math.min(rawY, 1 - hf))
+    
+    local unit = { x = x, y = y, w = wf, h = hf }
+    applyAndClamp(w, unit)
+    toast.showToast(({ ["2"] = "↓", ["5"] = "Centre", ["8"] = "↑" })[dir])
+    st.lastUnit = unit
+    return
+  end
+
   local u = st.lastUnit
   local wf, hf = u.w, u.h
   local x, y = getPositionByDir(dir, wf, hf)
@@ -197,21 +258,11 @@ bindHotkey(MODS, PAD1, function() moveWindow("1") end)
 bindHotkey(MODS, PAD2, function() moveWindow("2") end)
 bindHotkey(MODS, PAD3, function() moveWindow("3") end)
 bindHotkey(MODS, PAD4, function() moveWindow("4") end)
+bindHotkey(MODS, PAD5, function() moveWindow("5") end)
 bindHotkey(MODS, PAD6, function() moveWindow("6") end)
 bindHotkey(MODS, PAD7, function() moveWindow("7") end)
 bindHotkey(MODS, PAD8, function() moveWindow("8") end)
 bindHotkey(MODS, PAD9, function() moveWindow("9") end)
-
-bindHotkey(MODS, PAD5, function()
-  local w = activeWindow()
-  if not w then return end
-  local st = ensureWindowState(w)
-  local u = st.lastUnit
-  local unit = { x = (1 - u.w) / 2, y = (1 - u.h) / 2, w = u.w, h = u.h }
-  applyAndClamp(w, unit)
-  toast.showToast("가운데로")
-  st.lastUnit, st.lastDir = unit, "5"
-end)
 
 local function resizeWindow(isShrink)
   local w = activeWindow()
@@ -220,7 +271,7 @@ local function resizeWindow(isShrink)
   local baseIdx = st.resizeIndex or 1
   local newIdx = isShrink and (baseIdx + 1) or (baseIdx - 1)
   if newIdx < 1 or newIdx > #resizeStates
-  then toast.showToast(isShrink and "더이상 줄일 수 없어요" or "더이상 늘릴 수 없어요") return
+  then toast.showToast(isShrink and "최소 크기" or "최대 크기") return
   end
   local ab = resizeStates[newIdx]
   local wf, hf = 1 / ab[1], 1 / ab[2]
