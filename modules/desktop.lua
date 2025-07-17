@@ -4,6 +4,7 @@ local spaces      = hs.spaces
 local timer       = hs.timer
 local json        = hs.json
 local wfilter     = hs.window.filter
+local hotkey      = hs.hotkey
 
 local M = {}
 
@@ -116,17 +117,8 @@ function M.restoreDesktopLayout(filePath)
   end
 end
 
-local wf = wfilter.new()
-wf:subscribe({
-    wfilter.windowCreated,
-    wfilter.windowDestroyed,
-    wfilter.windowMoved,
-    wfilter.windowResized
-  },
-  function()
-    print("desktop > layout change detected")
-    M.saveDesktopLayout()
-  end
-)
+hotkey.bind({"cmd","ctrl"}, 114, function()
+  M.saveDesktopLayout()
+end)
 
 return M
