@@ -12,6 +12,7 @@ local M = {}
 -- config
 local layoutFile            = hs.configdir .. "/desktopLayout.json"
 local SAVE_DWELL_SEC        = 0.35
+local PRELAUNCH_WAIT_SEC = 2.0
 local RESTORE_DWELL_SEC     = 1.0      -- initial settle after gotoSpace & launch
 local RESTORE_POLL_SEC      = 0.25     -- poll interval while waiting for windows
 local RESTORE_WAIT_SEC      = 10.0     -- max wait per space before giving up
@@ -237,104 +238,95 @@ local function realizeSpaceWindows(savedSpace, targetSID, doneCb)
   timer.doAfter(RESTORE_DWELL_SEC, poll)
 end
 
--- restore
 function M.restoreDesktopLayout(path)
   local target = path or layoutFile
   local fh = io.open(target, "r")
-  if not fh then
-    toast.showToast("스페이스 구성 없음", 2.0)
-    return
-  end
-  local raw = fh:read("*a")
-  fh:close()
+  if not fh then toast.showToast("스페이스 구성 없음", 2.0) return end
+  local raw = fh:read("*a") fh:close()
   local ok, data = pcall(json.decode, raw)
-  if not ok or type(data) ~= "table" then
-    toast.showToast("스페이스 구성 없음", 2.0)
-    return
-  end
-  local activeMeta
-  local savedSpaces
+  if not ok or type(data) ~= "table" then toast.showToast("스페이스 구성 없음", 2.0) return end
+
+  local activeMeta, savedSpaces
   if data.meta and data.spaces then
-    activeMeta  = data.meta.active or {}
-    savedSpaces = data.spaces
+    activeMeta, savedSpaces = data.meta.active or {}, data.spaces
   else
-    activeMeta  = nil
-    savedSpaces = data
+    activeMeta, savedSpaces = nil, data
   end
   if type(savedSpaces) ~= "table" or #savedSpaces == 0 then
-    toast.showToast("스페이스 구성 없음", 2.0)
-    return
+    toast.showToast("스페이스 구성 없음", 2.0) return
   end
+
   local grouped = {}
   for _, sp in ipairs(savedSpaces) do
-    grouped[sp.screenUUID] = grouped[sp.screenUUID] or {}
-    table.insert(grouped[sp.screenUUID], sp)
+    local g = grouped[sp.screenUUID] or {}
+    g[#g + 1] = sp
+    grouped[sp.screenUUID] = g
   end
   for _, arr in pairs(grouped) do
     table.sort(arr, function(a, b) return (a.spaceIndex or 1) < (b.spaceIndex or 1) end)
   end
+
   if KILL_APPS_ON_RESTORE then
     for _, appObj in ipairs(application.runningApplications()) do
-      local bid = appObj:bundleIdentifier()
-      if bid ~= "org.hammerspoon.Hammerspoon" then
-        appObj:kill()
-      end
+      if appObj:bundleIdentifier() ~= "org.hammerspoon.Hammerspoon" then appObj:kill() end
     end
     hs.timer.usleep(500000)
   end
+
   launchedCache = {}
   local screensOrder = {}
-  for scrUUID, _ in pairs(grouped) do
-    screensOrder[#screensOrder + 1] = scrUUID
-  end
+  for suuid in pairs(grouped) do screensOrder[#screensOrder + 1] = suuid end
   table.sort(screensOrder, function(a, b)
-    local sa = screenForUUID(a):frame().x
-    local sb = screenForUUID(b):frame().x
-    return sa < sb
+    return screenForUUID(a):frame().x < screenForUUID(b):frame().x
   end)
+
   local focusSIDs = {}
   if activeMeta then
     local curMap = currentSpacesIndex()
     for suuid, meta in pairs(activeMeta) do
       local entry = curMap[suuid]
       if entry then
-        local sid = meta.spaceID
-        if not entry.idx[sid] and meta.spaceIndex and entry.list[meta.spaceIndex] then
-          sid = entry.list[meta.spaceIndex]
-        end
+        local sid = entry.idx[meta.spaceID] and meta.spaceID or entry.list[meta.spaceIndex]
         if sid then focusSIDs[#focusSIDs + 1] = sid end
       end
     end
   end
+
   local sIdx = 0
   local function stepScreen()
     sIdx = sIdx + 1
     local suuid = screensOrder[sIdx]
     if not suuid then
-      if #focusSIDs > 0 then
-        for _, sid in ipairs(focusSIDs) do
-          spaces.gotoSpace(sid)
-        end
-      end
+      for _, sid in ipairs(focusSIDs) do spaces.gotoSpace(sid) end
       toast.showToast("스페이스 구성 복구 완료", 2.0)
       return
     end
+
     local scr = screenForUUID(suuid)
     local savedSpacesForScreen = grouped[suuid]
-    local wantedCount = #savedSpacesForScreen
-    local curList = ensureSpacesForScreen(scr, wantedCount)
+    local curList = ensureSpacesForScreen(scr, #savedSpacesForScreen)
+
     local spIdx = 0
     local function stepSpace()
       spIdx = spIdx + 1
       local savedSpace = savedSpacesForScreen[spIdx]
-      if not savedSpace then
-        stepScreen()
-        return
-      end
+      if not savedSpace then stepScreen() return end
+
       local targetSID = curList[spIdx] or curList[#curList]
       spaces.gotoSpace(targetSID)
-      realizeSpaceWindows(savedSpace, targetSID, function()
-        stepSpace()
+
+      timer.doAfter(RESTORE_DWELL_SEC, function()
+        local needs = {}
+        for _, ws in ipairs(savedSpace.windows or {}) do needs[ws.app] = true end
+        for bid in pairs(needs) do ensureAppLaunched(bid) end
+
+        timer.doAfter(RESTORE_DWELL_SEC, function()
+          for _, ws in ipairs(savedSpace.windows or {}) do
+            local w = findWindow(ws.app, ws.title)
+            if w then applyFrame(w, ws.frame) end
+          end
+          stepSpace()
+        end)
       end)
     end
     stepSpace()
@@ -342,13 +334,10 @@ function M.restoreDesktopLayout(path)
   stepScreen()
 end
 
--- readiness check
 local function _readyForRestore()
-  local finder = application.get("Finder")
-  if not finder then return false end
+  if not application.get("Finder") then return false end
   local all = spaces.allSpaces()
-  if not all or next(all) == nil then return false end
-  return true
+  return all and next(all) ~= nil
 end
 
 function M.deferRestore(path, opts)

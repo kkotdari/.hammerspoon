@@ -7,10 +7,11 @@ local wfilter = hs.window.filter
 hs.window.animationDuration = 0
 
 local PAD_PLUS, PAD_MINUS = 69, 78
+local PAD_DIV, PAD_MUL = 75, 67
 local PAD1, PAD2, PAD3 = 83, 84, 85
 local PAD4, PAD5, PAD6 = 86, 87, 88
 local PAD7, PAD8, PAD9 = 89, 91, 92
-local PAD_DIV, PAD_MUL = 75, 67
+local LBRC, RBRC = 33, 30
 local PAD_DOT = 65
 local PAD_ENTER = 76
 local PAD0 = 82
@@ -282,8 +283,36 @@ local function resizeWindow(isShrink)
   st.lastUnit, st.resizeIndex = unit, newIdx
 end
 
-bindHotkey(MODS, PAD_MINUS, function() resizeWindow(true) end)
-bindHotkey(MODS, PAD_PLUS, function() resizeWindow(false) end)
+bindHotkey(MODS, PAD_DIV, function() resizeWindow(true) end)
+bindHotkey(MODS, PAD_MUL, function() resizeWindow(false) end)
+
+local function stepResizeHeight(isShrink)
+  local w = activeWindow()
+  if not w then return end
+
+  local st       = ensureWindowState(w)
+  local step     = 5
+  local baseIdx  = st.resizeIndex or 1
+  local newIdx   = isShrink and (baseIdx + step) or (baseIdx - step)
+
+  if newIdx < 1 or newIdx > #resizeStates then
+    toast.showToast(isShrink and "최소 높이" or "최대 높이")
+    return
+  end
+
+  local ab       = resizeStates[newIdx]
+  local wf, hf   = 1 / ab[1], 1 / ab[2]
+  local x, y     = getPositionByDir(st.lastDir, wf, hf)
+  local unit     = { x = x, y = y, w = wf, h = hf }
+
+  applyAndClamp(w, unit)
+  toast.showToast(ratioChars[newIdx])
+
+  st.lastUnit, st.resizeIndex = unit, newIdx
+end
+
+bindHotkey(MODS, PAD_PLUS, function() stepResizeHeight(true)  end)
+bindHotkey(MODS, PAD_MINUS,  function() stepResizeHeight(false) end)
 
 bindHotkey(MODS, PAD_DOT, function()
   local w = activeWindow()
@@ -304,7 +333,7 @@ bindHotkey(MODS, PAD_ENTER, function()
   st.lastUnit, st.resizeIndex, st.lastDir = unit, 1, "5"
 end)
 
-bindHotkey(MODS, PAD_DIV, function()
+bindHotkey(MODS, LBRC, function()
   local w = activeWindow()
   if not w then return end
   local st = ensureWindowState(w)
@@ -318,7 +347,7 @@ bindHotkey(MODS, PAD_DIV, function()
   st.lastUnit = unit
 end)
 
-bindHotkey(MODS, PAD_MUL, function()
+bindHotkey(MODS, RBRC, function()
   local w = activeWindow()
   if not w then return end
   local st = ensureWindowState(w)
