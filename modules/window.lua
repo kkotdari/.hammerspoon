@@ -11,12 +11,12 @@ local PAD_DIV, PAD_MUL = 75, 67
 local PAD1, PAD2, PAD3 = 83, 84, 85
 local PAD4, PAD5, PAD6 = 86, 87, 88
 local PAD7, PAD8, PAD9 = 89, 91, 92
-local LBRC, RBRC = 33, 30
 local PAD_DOT = 65
 local PAD_ENTER = 76
 local PAD0 = 82
 
 local MODS = { "cmd", "ctrl" }
+local SHIFT_MODS = { "cmd", "ctrl", "shift" }
 local windowStates = {}
 local ignoreWatcher = false
 local DoingFunctionCnt = 0
@@ -283,22 +283,23 @@ local function resizeWindow(isShrink)
   st.lastUnit, st.resizeIndex = unit, newIdx
 end
 
-bindHotkey(MODS, PAD_DIV, function() resizeWindow(true) end)
-bindHotkey(MODS, PAD_MUL, function() resizeWindow(false) end)
+bindHotkey(MODS, PAD_MINUS, function() resizeWindow(true) end)
+bindHotkey(MODS, PAD_PLUS, function() resizeWindow(false) end)
 
-local function stepResizeHeight(isShrink)
+local function resizeWindowToEnd(isShrink)
   local w = activeWindow()
   if not w then return end
 
-  local st       = ensureWindowState(w)
-  local step     = 5
-  local baseIdx  = st.resizeIndex or 1
-  local newIdx   = isShrink and (baseIdx + step) or (baseIdx - step)
-
-  if newIdx < 1 or newIdx > #resizeStates then
-    toast.showToast(isShrink and "최소 높이" or "최대 높이")
+  local st = ensureWindowState(w)
+  if st.resizeIndex == #resizeStates and isShrink then
+    toast.showToast("최소 크기")
+    return
+  elseif st.resizeIndex == 1 and not isShrink then
+    toast.showToast("최대 크기")
     return
   end
+
+  local newIdx   = isShrink and #resizeStates or 1
 
   local ab       = resizeStates[newIdx]
   local wf, hf   = 1 / ab[1], 1 / ab[2]
@@ -311,8 +312,8 @@ local function stepResizeHeight(isShrink)
   st.lastUnit, st.resizeIndex = unit, newIdx
 end
 
-bindHotkey(MODS, PAD_PLUS, function() stepResizeHeight(true)  end)
-bindHotkey(MODS, PAD_MINUS,  function() stepResizeHeight(false) end)
+bindHotkey(SHIFT_MODS, PAD_MINUS, function() resizeWindowToEnd(true) end)
+bindHotkey(SHIFT_MODS, PAD_PLUS, function() resizeWindowToEnd(false) end)
 
 bindHotkey(MODS, PAD_DOT, function()
   local w = activeWindow()
@@ -333,7 +334,7 @@ bindHotkey(MODS, PAD_ENTER, function()
   st.lastUnit, st.resizeIndex, st.lastDir = unit, 1, "5"
 end)
 
-bindHotkey(MODS, LBRC, function()
+bindHotkey(MODS, PAD_DIV, function()
   local w = activeWindow()
   if not w then return end
   local st = ensureWindowState(w)
@@ -347,7 +348,7 @@ bindHotkey(MODS, LBRC, function()
   st.lastUnit = unit
 end)
 
-bindHotkey(MODS, RBRC, function()
+bindHotkey(MODS, PAD_MUL, function()
   local w = activeWindow()
   if not w then return end
   local st = ensureWindowState(w)
