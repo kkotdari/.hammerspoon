@@ -1,4 +1,3 @@
--- modules/desktop.lua
 local application = hs.application
 local window      = hs.window
 local screen      = hs.screen
@@ -10,23 +9,20 @@ local fnutils     = hs.fnutils
 
 local M = {}
 
-----------------------------------------------------------------
--- 설정
-----------------------------------------------------------------
-local layoutFile           = hs.configdir .. "/desktopLayout.json"
-local SAVE_DWELL_SEC       = 0.35    -- 스페이스 전환 후 안정화 대기
-local RESTORE_DWELL_SEC    = 0.60    -- 앱 기동/스페이스 전환 후 안정화
-local KILL_APPS_ON_RESTORE = false   -- true 로 바꾸면 복원 전 앱 종료 시도
+-- config
+local layoutFile            = hs.configdir .. "/desktopLayout.json"
+local SAVE_DWELL_SEC        = 0.35
+local RESTORE_DWELL_SEC     = 1.0      -- initial settle after gotoSpace & launch
+local RESTORE_POLL_SEC      = 0.25     -- poll interval while waiting for windows
+local RESTORE_WAIT_SEC      = 10.0     -- max wait per space before giving up
+local KILL_APPS_ON_RESTORE  = false
 
-----------------------------------------------------------------
--- 유틸
-----------------------------------------------------------------
+-- util
 local function screenUUID(scr)
   return scr and scr:getUUID() or "unknown"
 end
 
 local function spaceSequence()
-  -- 반환: { {sid=spaceID, screen=scr, screenUUID=uuid, index=i}, ... } 정렬: 화면 순(좌->우), 인덱스 오름차순
   local seq = {}
   local screens = screen.allScreens()
   table.sort(screens, function(a, b) return a:frame().x < b:frame().x end)
@@ -55,22 +51,18 @@ local function windowRecord(win)
   }
 end
 
-----------------------------------------------------------------
--- 저장: 모든 스페이스를 돌며 창 수집
--- (파일 포맷 변경: { meta={active={scrUUID={spaceID=,spaceIndex=},...}}, spaces=[ ... ] })
-----------------------------------------------------------------
+-- save (new format: { meta={active=...}, spaces=[...] })
 function M.saveDesktopLayout(path)
   local target = path or layoutFile
   local seq = spaceSequence()
   local result = {}
   local i = 0
 
-  -- 저장 시작 시 각 디스플레이별 활성 스페이스 기억
-  local origActive = spaces.activeSpaces()  -- { [screenUUID] = spaceID }
-  local allSpacesMap = spaces.allSpaces()   -- 활성 인덱스 계산용
+  local origActive = spaces.activeSpaces()
+  local allSpacesMap = spaces.allSpaces()
   local activeMeta = {}
   for suuid, sid in pairs(origActive) do
-    local idx = nil
+    local idx
     local list = allSpacesMap[suuid] or {}
     for j, s in ipairs(list) do
       if s == sid then idx = j break end
@@ -78,17 +70,13 @@ function M.saveDesktopLayout(path)
     activeMeta[suuid] = { spaceID = sid, spaceIndex = idx }
   end
 
-  -- 나중에 원래 스페이스들로 복귀
   local origSids = {}
   for _, sid in pairs(origActive) do
     origSids[#origSids + 1] = sid
   end
 
   local function finish()
-    local payload = {
-      meta   = { active = activeMeta },
-      spaces = result
-    }
+    local payload = { meta = { active = activeMeta }, spaces = result }
     local encoded = json.encode(payload)
     local fh, err = io.open(target, "w")
     if not fh then
@@ -97,12 +85,9 @@ function M.saveDesktopLayout(path)
     end
     fh:write(encoded)
     fh:close()
-
-    -- 원래 스페이스들로 복귀
     for _, sid in ipairs(origSids) do
       spaces.gotoSpace(sid)
     end
-
     toast.showToast("스페이스 구성 업데이트 완료", 2.0)
   end
 
@@ -133,9 +118,7 @@ function M.saveDesktopLayout(path)
   step()
 end
 
-----------------------------------------------------------------
--- 현재 화면별 스페이스 목록과 빠른 인덱스
-----------------------------------------------------------------
+-- current space index map
 local function currentSpacesIndex()
   local m = {}
   local all = spaces.allSpaces()
@@ -147,9 +130,7 @@ local function currentSpacesIndex()
   return m
 end
 
-----------------------------------------------------------------
--- 스크린 UUID 로 screen 찾기 (없으면 primary)
-----------------------------------------------------------------
+-- resolve screen from UUID
 local function screenForUUID(uuid)
   for _, scr in ipairs(screen.allScreens()) do
     if scr:getUUID() == uuid then return scr end
@@ -157,28 +138,20 @@ local function screenForUUID(uuid)
   return screen.primaryScreen()
 end
 
-----------------------------------------------------------------
--- 필요한 스페이스 수 확보/정렬
--- 반환: 대상 화면에서 사용할 spaceID 배열(저장된 spaceCount 만큼)
-----------------------------------------------------------------
+-- ensure number of spaces
 local function ensureSpacesForScreen(scr, wantedCount)
   local uuid = screenUUID(scr)
   local curList = spaces.spacesForScreen(scr) or {}
   local curCount = #curList
-
-  -- 부족하면 추가
   while curCount < wantedCount do
-    local ok, sid = pcall(spaces.addSpaceToScreen, scr)
-    if ok and sid then
-      curList = spaces.spacesForScreen(scr) or curList
-      curCount = #curList
-    else
+    local ok = pcall(spaces.addSpaceToScreen, scr)
+    if not ok then
       print("desktop > addSpace fail for screen", uuid)
       break
     end
+    curList = spaces.spacesForScreen(scr) or curList
+    curCount = #curList
   end
-
-  -- 많으면 뒤에서 제거
   while curCount > wantedCount do
     local sid = curList[#curList]
     local ok = pcall(spaces.removeSpace, sid)
@@ -189,21 +162,16 @@ local function ensureSpacesForScreen(scr, wantedCount)
     curList = spaces.spacesForScreen(scr) or curList
     curCount = #curList
   end
-
   return spaces.spacesForScreen(scr) or curList
 end
 
-----------------------------------------------------------------
--- 앱 실행 여부
-----------------------------------------------------------------
+-- running?
 local function isBundleRunning(bundleID)
   local t = application.applicationsForBundleID(bundleID)
   return t and #t > 0
 end
 
-----------------------------------------------------------------
--- 번들ID로 앱 실행(한번만)
-----------------------------------------------------------------
+-- launch once
 local launchedCache = {}
 local function ensureAppLaunched(bundleID)
   if not bundleID or bundleID == "" then return end
@@ -214,9 +182,7 @@ local function ensureAppLaunched(bundleID)
   launchedCache[bundleID] = true
 end
 
-----------------------------------------------------------------
--- 번들ID+타이틀로 창 찾기 (현재 시스템 전체)
-----------------------------------------------------------------
+-- find specific window
 local function findWindow(bundleID, title)
   if not bundleID then return nil end
   for _, appObj in ipairs(application.applicationsForBundleID(bundleID) or {}) do
@@ -229,20 +195,50 @@ local function findWindow(bundleID, title)
   return nil
 end
 
-----------------------------------------------------------------
--- 프레임 적용
-----------------------------------------------------------------
+-- apply frame
 local function applyFrame(win, frame)
   if not (win and frame) then return end
   win:setFrame(frame, 0)
 end
 
-----------------------------------------------------------------
--- 복원: 저장파일에 *있던* 스페이스만 순환하며 복구
--- 저장 파일 포맷 변경 대응 (신/구 포맷 모두 허용)
-----------------------------------------------------------------
+-- wait until all (or timeout) windows for a saved space exist; move & frame them as they appear
+local function realizeSpaceWindows(savedSpace, targetSID, doneCb)
+  local winspecs = savedSpace.windows or {}
+  if #winspecs == 0 then
+    doneCb()
+    return
+  end
+  for _, ws in ipairs(winspecs) do
+    ensureAppLaunched(ws.app)
+  end
+  local seen = {}
+  local waited = 0
+  local function poll()
+    local allFound = true
+    for i, ws in ipairs(winspecs) do
+      if not seen[i] then
+        local w = findWindow(ws.app, ws.title)
+        if w then
+          spaces.moveWindowToSpace(w, targetSID)
+          applyFrame(w, ws.frame)
+          seen[i] = true
+        else
+          allFound = false
+        end
+      end
+    end
+    if allFound or waited >= RESTORE_WAIT_SEC then
+      doneCb()
+    else
+      waited = waited + RESTORE_POLL_SEC
+      timer.doAfter(RESTORE_POLL_SEC, poll)
+    end
+  end
+  timer.doAfter(RESTORE_DWELL_SEC, poll)
+end
+
+-- restore
 function M.restoreDesktopLayout(path)
-  print("desktop > restoreDesktopLayout called")
   local target = path or layoutFile
   local fh = io.open(target, "r")
   if not fh then
@@ -256,8 +252,6 @@ function M.restoreDesktopLayout(path)
     toast.showToast("스페이스 구성 없음", 2.0)
     return
   end
-
-  -- 새 포맷/구 포맷 구분
   local activeMeta
   local savedSpaces
   if data.meta and data.spaces then
@@ -267,24 +261,18 @@ function M.restoreDesktopLayout(path)
     activeMeta  = nil
     savedSpaces = data
   end
-
   if type(savedSpaces) ~= "table" or #savedSpaces == 0 then
     toast.showToast("스페이스 구성 없음", 2.0)
     return
   end
-
-  -- screenUUID별 그룹화
   local grouped = {}
   for _, sp in ipairs(savedSpaces) do
     grouped[sp.screenUUID] = grouped[sp.screenUUID] or {}
     table.insert(grouped[sp.screenUUID], sp)
   end
-  -- 각 화면 내 spaceIndex 순으로 정렬
   for _, arr in pairs(grouped) do
     table.sort(arr, function(a, b) return (a.spaceIndex or 1) < (b.spaceIndex or 1) end)
   end
-
-  -- (옵션) 모든 앱 종료
   if KILL_APPS_ON_RESTORE then
     for _, appObj in ipairs(application.runningApplications()) do
       local bid = appObj:bundleIdentifier()
@@ -292,12 +280,9 @@ function M.restoreDesktopLayout(path)
         appObj:kill()
       end
     end
-    hs.timer.usleep(500000) -- 0.5s
+    hs.timer.usleep(500000)
   end
-
   launchedCache = {}
-
-  -- 화면 순회(저장된 화면들만)
   local screensOrder = {}
   for scrUUID, _ in pairs(grouped) do
     screensOrder[#screensOrder + 1] = scrUUID
@@ -307,8 +292,6 @@ function M.restoreDesktopLayout(path)
     local sb = screenForUUID(b):frame().x
     return sa < sb
   end)
-
-  -- 복구 완료 후 이동할 대상 스페이스 선계산
   local focusSIDs = {}
   if activeMeta then
     local curMap = currentSpacesIndex()
@@ -323,13 +306,11 @@ function M.restoreDesktopLayout(path)
       end
     end
   end
-
   local sIdx = 0
   local function stepScreen()
     sIdx = sIdx + 1
     local suuid = screensOrder[sIdx]
     if not suuid then
-      -- 저장 당시 활성 스페이스로 복귀 (가능하면)
       if #focusSIDs > 0 then
         for _, sid in ipairs(focusSIDs) do
           spaces.gotoSpace(sid)
@@ -342,7 +323,6 @@ function M.restoreDesktopLayout(path)
     local savedSpacesForScreen = grouped[suuid]
     local wantedCount = #savedSpacesForScreen
     local curList = ensureSpacesForScreen(scr, wantedCount)
-
     local spIdx = 0
     local function stepSpace()
       spIdx = spIdx + 1
@@ -351,36 +331,18 @@ function M.restoreDesktopLayout(path)
         stepScreen()
         return
       end
-
       local targetSID = curList[spIdx] or curList[#curList]
       spaces.gotoSpace(targetSID)
-      timer.doAfter(RESTORE_DWELL_SEC, function()
-        -- 필요 앱 기동
-        for _, winSpec in ipairs(savedSpace.windows or {}) do
-          ensureAppLaunched(winSpec.app)
-        end
-        -- 앱이 뜨는 시간 후 프레임 적용
-        timer.doAfter(RESTORE_DWELL_SEC, function()
-          for _, winSpec in ipairs(savedSpace.windows or {}) do
-            local w = findWindow(winSpec.app, winSpec.title)
-            if w then
-              applyFrame(w, winSpec.frame)
-            end
-          end
-          stepSpace()
-        end)
+      realizeSpaceWindows(savedSpace, targetSID, function()
+        stepSpace()
       end)
     end
-
     stepSpace()
   end
-
   stepScreen()
 end
 
-----------------------------------------------------------------
--- 시스템 준비 체크 (필요시 사용)
-----------------------------------------------------------------
+-- readiness check
 local function _readyForRestore()
   local finder = application.get("Finder")
   if not finder then return false end
@@ -389,7 +351,6 @@ local function _readyForRestore()
   return true
 end
 
--- 지연 복구: ready 될 때까지 폴링
 function M.deferRestore(path, opts)
   opts = opts or {}
   local interval = opts.interval or 0.5
@@ -412,9 +373,7 @@ function M.deferRestore(path, opts)
   )
 end
 
-----------------------------------------------------------------
--- 수동 저장: cmd+ctrl+Insert (keycode 114)
-----------------------------------------------------------------
+-- manual save: cmd+ctrl+Insert (keycode 114)
 hotkey.bind({ "cmd", "ctrl" }, 114, function()
   M.saveDesktopLayout()
 end)
