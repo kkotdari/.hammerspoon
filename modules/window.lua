@@ -286,34 +286,24 @@ end
 bindHotkey(MODS, PAD_MINUS, function() resizeWindow(true) end)
 bindHotkey(MODS, PAD_PLUS, function() resizeWindow(false) end)
 
-local function resizeWindowToEnd(isShrink)
+local function maxMinWindow()
   local w = activeWindow()
   if not w then return end
 
+  
   local st = ensureWindowState(w)
-  if st.resizeIndex == #resizeStates and isShrink then
-    toast.showToast("최소 크기")
-    return
-  elseif st.resizeIndex == 1 and not isShrink then
-    toast.showToast("최대 크기")
-    return
-  end
+  local newIdx = st.resizeIndex == 1 and #resizeStates or 1
 
-  local newIdx   = isShrink and #resizeStates or 1
-
-  local ab       = resizeStates[newIdx]
-  local wf, hf   = 1 / ab[1], 1 / ab[2]
-  local x, y     = getPositionByDir(st.lastDir, wf, hf)
-  local unit     = { x = x, y = y, w = wf, h = hf }
-
+  local ab = resizeStates[newIdx]
+  local wf, hf = 1 / ab[1], 1 / ab[2]
+  local x, y = getPositionByDir(st.lastDir, wf, hf)
+  local unit = { x = x, y = y, w = wf, h = hf }
   applyAndClamp(w, unit)
-  toast.showToast(ratioChars[newIdx])
-
+  toast.showToast("현재" .. st.resizeIndex .. st.resizeIndex == 1 and "가장 크게" or "가장 작게")
   st.lastUnit, st.resizeIndex = unit, newIdx
 end
 
-bindHotkey(SHIFT_MODS, PAD_MINUS, function() resizeWindowToEnd(true) end)
-bindHotkey(SHIFT_MODS, PAD_PLUS, function() resizeWindowToEnd(false) end)
+bindHotkey(MODS, PAD_ENTER, function() maxMinWindow() end)
 
 bindHotkey(MODS, PAD_DOT, function()
   local w = activeWindow()
@@ -322,16 +312,6 @@ bindHotkey(MODS, PAD_DOT, function()
   applyAndClamp(w, st.originalUnit)
   toast.showToast("처음으로")
   st.lastUnit, st.resizeIndex, st.lastDir = st.originalUnit, 1, "5"
-end)
-
-bindHotkey(MODS, PAD_ENTER, function()
-  local w = activeWindow()
-  if not w then return end
-  local unit = { x = 0, y = 0, w = 1, h = 1 }
-  applyAndClamp(w, unit)
-  toast.showToast("가장 크게")
-  local st = ensureWindowState(w)
-  st.lastUnit, st.resizeIndex, st.lastDir = unit, 1, "5"
 end)
 
 bindHotkey(MODS, PAD_DIV, function()
@@ -344,7 +324,7 @@ bindHotkey(MODS, PAD_DIV, function()
   local tgt = all[((i - 2) % #all) + 1]
   w:moveToScreen(tgt)
   applyAndClamp(w, unit)
-  toast.showToast("←")
+  toast.showToast("이전 디스플레이로")
   st.lastUnit = unit
 end)
 
@@ -358,7 +338,7 @@ bindHotkey(MODS, PAD_MUL, function()
   local tgt = all[(i % #all) + 1]
   w:moveToScreen(tgt)
   applyAndClamp(w, unit)
-  toast.showToast("→")
+  toast.showToast("다음 디스플레이로")
   st.lastUnit = unit
 end)
 
