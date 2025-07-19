@@ -24,7 +24,7 @@ local SCROLL_ACCEL    = 1.15
 local CLICK_DELAY     = 0.05
 local TICK            = 0.01
 
-local TELEPORT_COORD = { x = 2000, y = 500 }
+local TELEPORT_COORD = { x = 0, y = 0 }
 
 --------------------------------------------------------------------
 -- module-local state
