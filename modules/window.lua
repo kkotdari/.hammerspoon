@@ -1,8 +1,10 @@
 local hotkey = hs.hotkey
-local window = hs.window
+local spaces  = hs.spaces
 local screen = hs.screen
+local window = hs.window
 local fnutils = hs.fnutils
 local wfilter = hs.window.filter
+local timer = hs.timer
 
 hs.window.animationDuration = 0
 
@@ -314,33 +316,65 @@ bindHotkey(MODS, PAD_DOT, function()
   st.lastUnit, st.resizeIndex, st.lastDir = st.originalUnit, 1, "5"
 end)
 
-bindHotkey(MODS, PAD_DIV, function()
-  local w = activeWindow()
-  if not w then return end
-  local st = ensureWindowState(w)
-  local unit = toUnitRect(w:frame(), w:screen():frame())
-  local all = screen.allScreens()
-  local i = fnutils.indexOf(all, w:screen())
-  local tgt = all[((i - 2) % #all) + 1]
-  w:moveToScreen(tgt)
-  applyAndClamp(w, unit)
-  toast.showToast("이전 디스플레이로")
-  st.lastUnit = unit
-end)
+-- local function getWindowSpace(win)
+--   local sid = (spaces.windowSpaces(win) or {})[1]
+--   local scr = win:screen()
+--   return scr and scr:getUUID(), sid
+-- end
 
-bindHotkey(MODS, PAD_MUL, function()
+-- local function adjacentSpace(uuid, sid, dir)
+--   local all   = spaces.allSpaces()
+--   local list  = all[uuid] or {}
+--   for i,v in ipairs(list) do
+--     if v == sid then
+--       local j = ((i + dir - 1) % #list) + 1
+--       return list[j]
+--     end
+--   end
+-- end
+
+-- local function moveWindowSpace(dir)
+--   local win = hs.window.focusedWindow()
+--   if not win then return end
+--   local uuid, sid = getWindowSpace(win)
+--   if not uuid or not sid then return end
+--   local target = adjacentSpace(uuid, sid, dir)
+--   if not target then return end
+
+--   -- 1) 윈도우를 타깃 스페이스로 이동
+--   local ok = hs.spaces.moveWindowToSpace(win, target)
+--   print("moveWindowToSpace returned:", ok)
+
+--   -- 2) 잠시 뒤 화면 전환 & 토스트
+--   hs.timer.doAfter(0.1, function()
+--     hs.spaces.gotoSpace(target)
+--     local label = (dir == -1 and "이전" or "다음") .. " 스페이스로"
+--     toast.showToast(label)
+--   end)
+-- end
+
+-- bindHotkey(MODS, PAD_DIV, function() moveWindowSpace(-1) end)
+-- bindHotkey(MODS, PAD_MUL, function() moveWindowSpace( 1) end)
+
+local function moveWindowDisplay(dir)
+  if not dir or (dir ~= -1 and dir ~= 1) then return end
   local w = activeWindow()
   if not w then return end
   local st = ensureWindowState(w)
   local unit = toUnitRect(w:frame(), w:screen():frame())
   local all = screen.allScreens()
   local i = fnutils.indexOf(all, w:screen())
-  local tgt = all[(i % #all) + 1]
+  local tgt = dir == -1 and all[((i - 2) % #all) + 1] or all[(i % #all) + 1]
   w:moveToScreen(tgt)
   applyAndClamp(w, unit)
-  toast.showToast("다음 디스플레이로")
+  toast.showToast((dir == -1 and "이전" or "다음") .. " 디스플레이로")
   st.lastUnit = unit
-end)
+end
+
+bindHotkey(MODS, PAD_DIV, function() moveWindowDisplay(-1) end)
+bindHotkey(MODS, PAD_MUL, function() moveWindowDisplay( 1) end)
+-- bindHotkey(SHIFT_MODS, PAD_DIV, function() moveWindowDisplay(-1) end)
+-- bindHotkey(SHIFT_MODS, PAD_MUL, function() moveWindowDisplay( 1) end)
 
 hs.urlevent.bind("resize", function(_, params)
   local w = activeWindow()
