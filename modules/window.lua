@@ -57,22 +57,16 @@ local function activeWindow()
 end
 
 local resizeStates = {
-  { 1, 1 }, { 1.5, 1 }, { 2, 1 }, { 3, 1 }, { 4, 1 },
-  { 1, 1.5 }, { 1.5, 1.5 }, { 2, 1.5 }, { 3, 1.5 }, { 4, 1.5 },
-  { 1, 2 }, { 1.5, 2 }, { 2, 2 }, { 3, 2 }, { 4, 2 },
-  { 1, 3 }, { 1.5, 3 }, { 2, 3 }, { 3, 3 }, { 4, 3 },
+  { 1, 1 }, { 4/3, 1 }, { 2, 1 }, { 4, 1 },
+  { 1, 2 }, { 4/3, 2 }, { 2, 2 }, { 4, 2 },
   { 8, 4 }
 }
 
 local ratioChars = {
-  "1×1", "⅔×1", "½×1", "⅓×1", "¼×1",
-  "1×⅔", "⅔×⅔", "½×⅔", "⅓×⅔", "¼×⅔",
-  "1×½", "⅔×½", "½×½", "⅓×½", "¼×½",
-  "1×⅓", "⅔×⅓", "½×⅓", "⅓×⅓", "¼×⅓",
+  "1×1", "¾×1", "½×1", "¼×1",
+  "1×½", "¾×½", "½×½", "¼×½",
   "⅛×¼"
 }
-
-local EPS = 1e-6
 
 local function getResizeIndex(win)
   local f = win:frame()
@@ -108,10 +102,10 @@ local function getLastDir(win)
   print("getLastDir > win > x/y/w/h: " .. f.x .. "/" .. f.y .. "/" .. f.w .. "/" .. f.h)
   print("getLastDir > screen > x/y/w/h: " .. sf.x .. "/" .. sf.y .. "/" .. sf.w .. "/" .. sf.h)
 
-  local t = math.abs(f.y - sf.y) < EPS
+  local t = math.abs(f.y - sf.y) <= 1
   local b = math.abs(f.y + f.h - (sf.y + sf.h)) <= 1
-  local l = math.abs(f.x - sf.x) < EPS
-  local r = math.abs(f.x + f.w - (sf.x + sf.w)) < EPS
+  local l = math.abs(f.x - sf.x) <= 1
+  local r = math.abs(f.x + f.w - (sf.x + sf.w)) <= 1
   
   local lastDir
   if t and not b and l and not r then lastDir = "7"
@@ -120,8 +114,8 @@ local function getLastDir(win)
   elseif not t and b and not l and r then lastDir = "3"
   elseif t and not b and not l and not r then lastDir = "8"
   elseif not t and b and not l and not r then lastDir = "2"
-  elseif not t and not b and l and not r then lastDir = "4"
-  elseif not t and not b and not l and r then lastDir = "6"
+  elseif l and not r then lastDir = "4"
+  elseif not l and r then lastDir = "6"
   else lastDir = "5" end
   
   print("getLastDir > t/b/l/r: " .. tostring(t) .. "/" .. tostring(b) .. "/" .. tostring(l) .. "/" .. tostring(r))
@@ -130,13 +124,12 @@ local function getLastDir(win)
 end
 
 local function getColIndex(win)
-  local EPS = 1e-6
   local f  = win:frame()
   local sf = win:screen():frame()
   local u  = toUnitRect(f, sf)
   local cx = u.x + u.w/2
 
-  if math.abs(cx - 0.5) < EPS then
+  if math.abs(cx - 0.5) <= 1 then
     return 1
   elseif cx < 0.5 then
     return 2

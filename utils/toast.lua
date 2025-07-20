@@ -46,8 +46,8 @@ function M.showToast(titleOrSpec, duration, fontInfo)
     },
     duration = tonumber(duration) or 2.0,
     fontInfo = {
-      name               = "Helvetica",
-      size               = 14.0,
+      name               = "",
+      size               = 16.0,
       weight             = "Regular",
       color              = "#000000",
       kerning            = 0,

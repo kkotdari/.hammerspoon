@@ -12,7 +12,7 @@ require("/modules/window")
 require("/modules/point")
 
 print("running version: ", version)
-toast.showToast("You are using Hammerspoon toolkits version " .. version, 3)
+toast.showToast("Hammerspoon toolkits v " .. version, 3)
 
 print("init > schedule deferred restore")
 desktop.deferRestore()
