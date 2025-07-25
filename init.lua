@@ -8,7 +8,8 @@ toast = require("/utils/toast")
 desktop = require("/modules/desktop")
 
 require("/interceptors/keyHandler")
-require("/modules/window")
+-- require("/modules/window")
+require("/modules/simpleWindow")
 require("/modules/point")
 
 print("running version: ", version)

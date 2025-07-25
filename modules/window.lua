@@ -294,7 +294,7 @@ local function maxMinWindow()
   local x, y = getPositionByDir(st.lastDir, wf, hf)
   local unit = { x = x, y = y, w = wf, h = hf }
   applyAndClamp(w, unit)
-  toast.showToast("현재" .. st.resizeIndex .. st.resizeIndex == 1 and "가장 크게" or "가장 작게")
+  toast.showToast(newIdx == 1 and "가장 크게" or "가장 작게")
   st.lastUnit, st.resizeIndex = unit, newIdx
 end
 
