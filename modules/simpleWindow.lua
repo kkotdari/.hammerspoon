@@ -151,7 +151,18 @@ hotkey.bind(MODS, PAD_DOT, function()
 end)
 
 hotkey.bind(MODS, PAD0, function()
-  -- webview input logic here
+  local w = activeWindow()
+  if not w then return end
+  local st = ensureWindowState(w)
+  local lu = st.lastUnit
+  local unit = {
+    x = (1 - lu.w) / 2,
+    y = (1 - lu.h) / 2,
+    w = lu.w,
+    h = lu.h
+  }
+  applyAndClamp(w, unit)
+  st.lastUnit, st.step, st.lastDir = unit, 1, "5"
 end)
 
 local function moveWindowDisplay(dir)
