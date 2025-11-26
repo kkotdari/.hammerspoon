@@ -15,7 +15,7 @@ local PAD_DOT = 65
 local PAD0  = 82
 local PAD_DIV = 75
 local PAD_MUL = 67
-local PAD_INSERT  = 114
+local PAD_PLUS = 69
 
 local MODS = {"cmd", "ctrl"}
 local windowStates = {}
@@ -179,6 +179,31 @@ end
 
 hotkey.bind(MODS, PAD_DIV, function() moveWindowDisplay(-1) end)
 hotkey.bind(MODS, PAD_MUL, function() moveWindowDisplay(1) end)
+
+hotkey.bind(MODS, PAD_PLUS, function()
+  local w = activeWindow()
+  if not w then return end
+
+  local st = ensureWindowState(w)
+
+  local sf = w:screen():frame()
+
+  local targetW = 380
+  local targetH = 640
+
+  local unit = {
+    x = (sf.w - targetW) / 2 / sf.w,
+    y = (sf.h - targetH) / 2 / sf.h,
+    w = targetW / sf.w,
+    h = targetH / sf.h
+  }
+
+  applyAndClamp(w, unit)
+
+  st.lastUnit = unit
+  st.step = 1
+  st.lastDir = nil
+end)
 
 wfilter.new():subscribe(
   {wfilter.windowMoved, wfilter.windowResized},
