@@ -23,10 +23,10 @@ local watingWatchingCnt = 0
 
 local function toUnitRect(f, sf)
   return {
-  x = (f.x - sf.x) / sf.w,
-  y = (f.y - sf.y) / sf.h,
-  w = f.w / sf.w,
-  h = f.h / sf.h
+    x = (f.x - sf.x) / sf.w,
+    y = (f.y - sf.y) / sf.h,
+    w = f.w / sf.w,
+    h = f.h / sf.h
   }
 end
 
@@ -51,28 +51,28 @@ end
 local function ensureWindowState(win)
   local id = win:id()
   if not windowStates[id] then
-  windowStates[id] = {orig = nil, lastUnit = nil, lastDir = nil, step = nil}
+    windowStates[id] = {orig = nil, lastUnit = nil, lastDir = nil, step = nil}
   end
   local st = windowStates[id]
   if not st.orig then
-  local f, sf = win:frame(), win:screen():frame()
-  st.orig = toUnitRect(f, sf)
-  st.lastUnit = st.orig
-  st.step = 1
+    local f, sf = win:frame(), win:screen():frame()
+    st.orig = toUnitRect(f, sf)
+    st.lastUnit = st.orig
+    st.step = 1
   end
   return st
 end
 
 local dirMap = {
-  ["1"] = {xAlign="left", yAlign="bottom", wSteps={0.5,0.333,0.667}, hFixed=0.5},
-  ["2"] = {xAlign="center", yAlign="bottom", wSteps={1,0.5,0.333}, hFixed=0.5},
-  ["3"] = {xAlign="right",  yAlign="bottom", wSteps={0.5,0.333,0.667}, hFixed=0.5},
-  ["4"] = {xAlign="left", yAlign="center", wSteps={0.5,0.333,0.667}, hFixed=1},
+  ["1"] = {xAlign="left", yAlign="bottom", wSteps={0.75, 0.667, 0.5, 0.333, 0.25}, hFixed=0.5},
+  ["2"] = {xAlign="center", yAlign="bottom", wSteps={1, 0.75, 0.667, 0.5, 0.333, 0.25}, hFixed=0.5},
+  ["3"] = {xAlign="right",  yAlign="bottom", wSteps={0.75, 0.667, 0.5, 0.333, 0.25}, hFixed=0.5},
+  ["4"] = {xAlign="left", yAlign="center", wSteps={0.75, 0.667, 0.5, 0.333, 0.25}, hFixed=1},
   ["5"] = {xAlign="center", yAlign="center", wFixed=1/3,  hFixed=1},
-  ["6"] = {xAlign="right",  yAlign="center", wSteps={0.5,0.333,0.667}, hFixed=1},
-  ["7"] = {xAlign="left", yAlign="top",  wSteps={0.5,0.333,0.667}, hFixed=0.5},
-  ["8"] = {xAlign="center", yAlign="top",  wSteps={1,0.5,0.333}, hFixed=0.5},
-  ["9"] = {xAlign="right",  yAlign="top",  wSteps={0.5,0.333,0.667}, hFixed=0.5},
+  ["6"] = {xAlign="right",  yAlign="center", wSteps={0.75, 0.667, 0.5, 0.333, 0.25}, hFixed=1},
+  ["7"] = {xAlign="left", yAlign="top",  wSteps={0.75, 0.667, 0.5, 0.333, 0.25}, hFixed=0.5},
+  ["8"] = {xAlign="center", yAlign="top",  wSteps={1, 0.75, 0.667, 0.5, 0.333, 0.25}, hFixed=0.5},
+  ["9"] = {xAlign="right",  yAlign="top",  wSteps={0.75, 0.667, 0.5, 0.333, 0.25}, hFixed=0.5},
 }
 
 local function moveOrResize(dir)
@@ -81,37 +81,37 @@ local function moveOrResize(dir)
   local st = ensureWindowState(w)
 
   if st.lastDir == dir then
-  st.step = st.step + 1
+    st.step = st.step + 1
   else
-  st.step = 1
+    st.step = 1
   end
   st.lastDir = dir
 
   local info = dirMap[dir]
   local wf
   if info.wFixed then
-  wf = info.wFixed
+    wf = info.wFixed
   else
-  wf = info.wSteps[((st.step - 1) % #info.wSteps) + 1]
+    wf = info.wSteps[((st.step - 1) % #info.wSteps) + 1]
   end
   local hf = info.hFixed or 1
 
   local x
   if info.xAlign == "left" then
-  x = 0
+    x = 0
   elseif info.xAlign == "center" then
-  x = (1 - wf) / 2
+    x = (1 - wf) / 2
   else
-  x = 1 - wf
+    x = 1 - wf
   end
 
   local y
   if info.yAlign == "top" then
-  y = 0
+    y = 0
   elseif info.yAlign == "center" then
-  y = (1 - hf) / 2
+    y = (1 - hf) / 2
   else
-  y = 1 - hf
+    y = 1 - hf
   end
 
   applyAndClamp(w, {x = x, y = y, w = wf, h = hf})
@@ -133,12 +133,12 @@ hotkey.bind(MODS, PAD_ENTER, function()
   if not w then return end
   local st = ensureWindowState(w)
   if st.maximized then
-  applyAndClamp(w, st.lastUnit)
-  st.maximized = false
+    applyAndClamp(w, st.lastUnit)
+    st.maximized = false
   else
-  local unit = {x = 0, y = 0, w = 1, h = 1}
-  applyAndClamp(w, unit)
-  st.maximized = true
+    local unit = {x = 0, y = 0, w = 1, h = 1}
+    applyAndClamp(w, unit)
+    st.maximized = true
   end
 end)
 
@@ -183,23 +183,17 @@ hotkey.bind(MODS, PAD_MUL, function() moveWindowDisplay(1) end)
 hotkey.bind(MODS, PAD_PLUS, function()
   local w = activeWindow()
   if not w then return end
-
   local st = ensureWindowState(w)
-
   local sf = w:screen():frame()
-
   local targetW = 380
   local targetH = 640
-
   local unit = {
     x = (sf.w - targetW) / 2 / sf.w,
     y = (sf.h - targetH) / 2 / sf.h,
     w = targetW / sf.w,
     h = targetH / sf.h
   }
-
   applyAndClamp(w, unit)
-
   st.lastUnit = unit
   st.step = 1
   st.lastDir = nil
