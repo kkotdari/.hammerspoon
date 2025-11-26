@@ -5,7 +5,7 @@ local version = "0.4.0"
 
 store = require("/configs/store")
 toast = require("/utils/toast")
-desktop = require("/modules/desktop")
+-- desktop = require("/modules/desktop")
 
 require("/interceptors/keyHandler")
 -- require("/modules/window")
@@ -16,4 +16,4 @@ print("running version: ", version)
 toast.showToast("Hammerspoon toolkits v " .. version, 3)
 
 print("init > schedule deferred restore")
-desktop.deferRestore()
+-- desktop.deferRestore()
