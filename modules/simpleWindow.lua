@@ -19,7 +19,7 @@ local PAD_PLUS = 69
 
 local MODS = {"cmd", "ctrl"}
 local windowStates = {}
-local watingWatchingCnt = 0
+local waitingWatchingCnt = 0
 
 local function toUnitRect(f, sf)
   return {
@@ -37,7 +37,7 @@ local function clampFrame(f, uf)
 end
 
 local function applyAndClamp(win, unit)
-  watingWatchingCnt = watingWatchingCnt + 1
+  waitingWatchingCnt = waitingWatchingCnt + 1
   win:moveToUnit(unit, 0)
   local f2 = win:frame()
   local uf = win:screen():frame()
@@ -202,8 +202,8 @@ end)
 wfilter.new():subscribe(
   {wfilter.windowMoved, wfilter.windowResized},
   function(win)
-    if not watingWatchingCnt == 0 then
-      watingWatchingCnt = watingWatchingCnt - 1
+    if not waitingWatchingCnt == 0 then
+      waitingWatchingCnt = waitingWatchingCnt - 1
       return
     end
     local id = win:id()
