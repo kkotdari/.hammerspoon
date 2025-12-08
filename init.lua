@@ -9,7 +9,8 @@ toast = require("/utils/toast")
 
 require("/interceptors/keyHandler")
 -- require("/modules/window")
-require("/modules/simpleWindow")
+-- require("/modules/simpleWindow")
+require("/modules/advancedSimpleWindow")
 require("/modules/point")
 
 print("running version: ", version)
