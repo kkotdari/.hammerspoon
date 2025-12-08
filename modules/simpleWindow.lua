@@ -186,10 +186,10 @@ hotkey.bind(MODS, PAD_PLUS, function()
   local st = ensureWindowState(w)
   local sf = w:screen():frame()
   local targetW = 380
-  local targetH = 640
+  local targetH = 380
   local unit = {
-    x = (sf.w - targetW) / 2 / sf.w,
-    y = (sf.h - targetH) / 2 / sf.h,
+    x = (sf.w - targetW) / sf.w,
+    y = (sf.h - targetH) / sf.h,
     w = targetW / sf.w,
     h = targetH / sf.h
   }
