@@ -80,7 +80,11 @@ end
 
 local function applyAndClamp(win, unit)
   local winId = win:id()
-  isProgrammaticWindows[winId] = true
+  if isProgrammaticWindows[winId] then
+    isProgrammaticWindows[winId] = isProgrammaticWindows[winId] + 1
+  else
+    isProgrammaticWindows[winId] = 1
+  end
 
   win:moveToUnit(unit, 0)
   local f2 = win:frame()
@@ -91,7 +95,7 @@ local function applyAndClamp(win, unit)
   st.lastUnit = toUnitRect(win:frame(), win:screen():frame())
 
   timer.doAfter(1.5, function()
-    isProgrammaticWindows[winId] = nil
+    isProgrammaticWindows[winId] = isProgrammaticWindows[winId] - 1
   end)
 
   logWindowState(win, "Script Move/Resize")
@@ -255,7 +259,7 @@ wfilter.new():subscribe(
   {wfilter.windowMoved, wfilter.windowResized},
   function(win)
     local winId = win:id()
-    if isProgrammaticWindows[winId] then
+    if isProgrammaticWindows[winId] > 0 then
       return
     end
 
