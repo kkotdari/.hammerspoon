@@ -122,9 +122,9 @@ local function moveOrResize(dir)
   st.targetSize = nil
 
   local info = dirMap[dir]
-  local numSteps = #info.wSteps or 1
+  local numSteps = info.wSteps and #info.wSteps or 1
 
-  if st.lastDir == dir then
+  if st.lastDir == dir and numSteps > 1 then
     st.step = ((st.step % numSteps) or 0) + 1
   else
     st.step = 1
